@@ -4,6 +4,8 @@ Bu proje, modern mikroservis mimarisi prensipleriyle geliştirilmiş, ölçeklen
 
 Kullanıcı yönetimi, hesap işlemleri, para transferleri ve bildirim sistemlerini içerir. Altyapı olarak **Kubernetes**, **Kafka**, **Redis** ve **PostgreSQL** kullanır.
 
+Proje, **GitHub Actions** ile tam otomatik CI/CD hattına sahiptir ve kod kalitesi **SonarQube** ile denetlenmektedir.
+
 ---
 
 ## 🚀 Teknolojiler ve Mimari
@@ -16,10 +18,8 @@ Proje **Spring Boot 3.4.1** ve **Java 17+** kullanılarak geliştirilmiştir.
 | **Identity Service** | Spring Security, JWT | Kimlik doğrulama, Token yönetimi (Redis). |
 | **Transaction Service** | Spring Data JPA | Hesap yönetimi, Para transferi (Outbox Pattern). |
 | **Notification Service** | Apache Kafka | Asenkron bildirim gönderimi (Consumer). |
-| **Veritabanı** | PostgreSQL | İlişkisel veri saklama. |
-| **Cache** | Redis | Refresh token ve önbellekleme. |
-| **Message Broker** | Kafka & Zookeeper | Servisler arası asenkron iletişim. |
-| **Observability** | Prometheus, Grafana, Zipkin | Metrik takibi ve dağıtık izleme (Tracing). |
+| **CI/CD** | GitHub Actions | Otomatik Build, Test ve Deploy. |
+| **Code Quality** | SonarQube | Statik kod analizi ve güvenlik taraması. |
 | **Orchestration** | Kubernetes (Minikube) | Konteyner yönetimi. |
 
 ---
@@ -28,6 +28,7 @@ Proje **Spring Boot 3.4.1** ve **Java 17+** kullanılarak geliştirilmiştir.
 
 ```bash
 banking-backend/
+├── .github/workflows/    # CI/CD Pipeline tanımları (YAML)
 ├── api-gateway/          # İstek karşılama ve yönlendirme
 ├── identity-service/     # Auth (Register, Login, Token)
 ├── transaction-service/  # Hesap ve Transfer işlemleri
@@ -92,6 +93,7 @@ Sistem ayaktayken aşağıdaki araçlarla sağlık durumunu izleyebilirsiniz:
 *   **Grafana:** `http://localhost:3000` (Kullanıcı: `admin`, Şifre: `admin`)
 *   **Zipkin:** `http://localhost:9411`
 *   **Prometheus:** `http://localhost:9090`
+*   **SonarCloud:** Kod kalitesi raporları için SonarCloud panelini ziyaret edin.
 
 ---
 

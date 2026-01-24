@@ -198,7 +198,20 @@ curl -X POST http://localhost:8080/api/v1/transactions \
 
 ---
 
-## 3. Grafana ile İzleme (Monitoring)
+## 3. CI/CD Pipeline Testi
+
+Sistemin otomatik dağıtım sürecini test etmek için:
+
+1.  **Değişiklik Yapın:** Projede küçük bir değişiklik yapın (örn. README.md güncellemesi).
+2.  **Push Yapın:** `git push origin main` komutuyla gönderin.
+3.  **İzleyin:** GitHub Actions sekmesinden pipeline'ın çalışmasını izleyin.
+    *   **SonarQube:** Kod analizi başarılı olmalı.
+    *   **Docker:** İmajlar build edilip Docker Hub'a yüklenmeli.
+    *   **Deploy:** Kubernetes kümesine yeni versiyon dağıtılmalı.
+
+---
+
+## 4. Grafana ile İzleme (Monitoring)
 
 Yaptığınız işlemlerin sisteme nasıl yansıdığını görmek için:
 
@@ -210,7 +223,7 @@ Yaptığınız işlemlerin sisteme nasıl yansıdığını görmek için:
 
 ---
 
-## 4. Sık Karşılaşılan Hatalar ve Çözümleri
+## 5. Sık Karşılaşılan Hatalar ve Çözümleri
 
 | Hata Kodu | Mesaj | Olası Sebep | Çözüm |
 | :--- | :--- | :--- | :--- |

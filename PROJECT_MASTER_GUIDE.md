@@ -1,6 +1,6 @@
 # Banking Backend - Proje Master Dokümantasyonu
 
-Bu doküman, Banking Backend projesinin Kubernetes (Minikube) üzerindeki kurulumunu, mimarisini, karşılaşılan sorunların çözümlerini ve operasyonel komutları içerir.
+Bu doküman, Banking Backend projesinin Kubernetes (Minikube) üzerindeki kurulumunu, mimarisini, CI/CD süreçlerini, karşılaşılan sorunların çözümlerini ve operasyonel komutları içerir.
 
 ---
 
@@ -44,25 +44,53 @@ Tüm servisler Kubernetes içinde **Port 80** üzerinden birbirleriyle iletişim
 
 ---
 
-## 2. Karşılaşılan Kritik Sorunlar ve Çözümleri
+## 2. CI/CD Pipeline (Sürekli Entegrasyon ve Dağıtım)
+
+Proje, **GitHub Actions** kullanılarak otomatikleştirilmiş bir CI/CD hattına sahiptir.
+
+### İş Akışı (Workflow)
+Her `main` branch'e yapılan push işleminde aşağıdaki adımlar sırasıyla çalışır:
+
+1.  **SonarQube Analizi:**
+    *   Kod kalitesi ve güvenliği taranır.
+    *   **Quality Gate:** Eğer kod kalitesi standartların altındaysa (örn. düşük test coverage), pipeline durdurulur.
+2.  **Build & Push:**
+    *   Maven ile proje derlenir.
+    *   Docker imajları oluşturulur.
+    *   İmajlar **Docker Hub**'a yüklenir (`latest` ve `commit-sha` etiketleriyle).
+3.  **Kubernetes Deploy:**
+    *   Başarılı imajlar, tanımlı Kubernetes kümesine (`kubectl apply`) otomatik olarak dağıtılır.
+
+### Gerekli GitHub Secrets
+Pipeline'ın çalışması için GitHub repo ayarlarında şu secret'lar tanımlanmalıdır:
+*   `DOCKER_USERNAME`: Docker Hub kullanıcı adı.
+*   `DOCKER_PASSWORD`: Docker Hub şifresi veya Access Token.
+*   `SONAR_TOKEN`: SonarCloud analiz token'ı.
+*   `KUBE_CONFIG`: Kubernetes kümesine erişim için config dosyası içeriği.
+
+---
+
+## 3. Karşılaşılan Kritik Sorunlar ve Çözümleri
 
 Geliştirme sürecinde çözülen kritik hatalar:
 
 ### 1. Identity Service - 403 Forbidden (Readiness Probe)
 *   **Çözüm:** `AuthConfig.java` dosyasında Actuator için ayrı ve öncelikli (`@Order(1)`) bir `SecurityFilterChain` tanımlandı.
 
-### 2. Notification Service - Kafka Bağlantı Hatası
-*   **Çözüm:** `notification-service.yaml` dosyasına `SPRING_KAFKA_BOOTSTRAP_SERVERS` ortam değişkeni eklenerek adres `kafka-service:9092` olarak güncellendi.
+### 2. SonarQube Quality Gate Hatası
+*   **Sorun:** Pipeline, SonarQube rapor dosyasını bulamıyordu.
+*   **Çözüm:** `docker-publish.yml` dosyasına `scanMetadataReportFile: target/sonar/report-task.txt` parametresi eklendi.
 
-### 3. Kafka Port Çakışması
-*   **Çözüm:** Servis adı `kafka` yerine `kafka-service` olarak değiştirildi.
+### 3. SonarQube 403 Forbidden
+*   **Sorun:** Maven plugin versiyonu uyumsuzluğu.
+*   **Çözüm:** Plugin versiyonu `4.0.0.4121` olarak sabitlendi ve `SONAR_TOKEN` environment variable olarak tanımlandı.
 
 ### 4. Prometheus - Connection Refused
 *   **Çözüm:** Tüm servislerin Kubernetes Service portları **80** olarak standartlaştırıldı.
 
 ---
 
-## 3. Komut Sözlüğü (Cheat Sheet)
+## 4. Komut Sözlüğü (Cheat Sheet)
 
 ### Kubernetes (kubectl)
 *   `kubectl apply -f k8s/`: Tüm konfigürasyonları uygular.
@@ -77,7 +105,7 @@ Geliştirme sürecinde çözülen kritik hatalar:
 
 ---
 
-## 4. Test ve Erişim
+## 5. Test ve Erişim
 
 Detaylı test senaryoları için **`TESTING_GUIDE.md`** dosyasına bakınız.
 
@@ -89,14 +117,14 @@ Detaylı test senaryoları için **`TESTING_GUIDE.md`** dosyasına bakınız.
 
 ---
 
-## 5. Mevcut Durum
+## 6. Mevcut Durum
 
-**✅ Durum:** SİSTEM STABLE (KARARLI)
+**✅ Durum:** SİSTEM STABLE (KARARLI) & AUTOMATED (OTOMATİZE)
 
 *   Mikroservisler Kubernetes üzerinde çalışıyor.
-*   Kafka ile asenkron iletişim (Transaction -> Notification) sağlanıyor.
-*   Prometheus ve Grafana ile metrik takibi yapılıyor.
-*   Zipkin ile trace takibi aktif.
+*   **CI/CD:** GitHub Actions ile otomatik test, build ve deploy aktif.
+*   **Kalite:** SonarQube ile kod analizi yapılıyor.
+*   **İzleme:** Prometheus ve Grafana ile metrik takibi yapılıyor.
 
 **Sıradaki Adımlar:**
-(Yeni görevler bekleniyor...)
+(Bkz. `NEXT_STEPS.md`)
