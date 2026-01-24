@@ -88,3 +88,29 @@ jobs:
             SERVICE_NAME=${{ matrix.service }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy-to-k8s:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Configure Kubernetes Context
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f k8s/
+          kubectl rollout restart deployment/api-gateway
+          kubectl rollout restart deployment/identity-service
+          kubectl rollout restart deployment/transaction-service
+          kubectl rollout restart deployment/notification-service
