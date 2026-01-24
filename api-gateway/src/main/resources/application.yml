@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: identity-service-route
+          uri: lb://identity-service
+          predicates:
+            - Path=/auth/**
+
+        - id: transaction-service-route
+          uri: lb://transaction-service
+          predicates:
+            - Path=/api/v1/**
+          filters:
+            - AuthenticationFilter
+    discovery:
+      client:
+        simple:
+          instances:
+            identity-service:
+              - uri: ${IDENTITY_SERVICE_URL:http://localhost:8081}
+            transaction-service:
+              - uri: ${TRANSACTION_SERVICE_URL:http://localhost:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://${ZIPKIN_HOST:localhost}:9411/api/v2/spans

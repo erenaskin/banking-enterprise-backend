@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: identity-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: identity-service
+  template:
+    metadata:
+      labels:
+        app: identity-service
+    spec:
+      containers:
+      - name: identity-service
+        image: identity-service:0.0.1
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8081
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "kubernetes"
+        - name: SPRING_DATASOURCE_USERNAME
+          value: "erenaskin"
+        - name: SPRING_DATASOURCE_PASSWORD
+          value: "Ea030903*"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi" # Bellek limitini artırdık
+            cpu: "1" # CPU limitini artırdık
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8081
+          initialDelaySeconds: 45 # Başlangıç gecikmesini artırdık
+          periodSeconds: 15
+          failureThreshold: 3 # Hata eşiği ekledik
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8081
+          initialDelaySeconds: 90 # Başlangıç gecikmesini ciddi oranda artırdık
+          periodSeconds: 20
+          failureThreshold: 3 # Hata eşiği ekledik
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: identity-service
+spec:
+  type: ClusterIP
+  selector:
+    app: identity-service
+  ports:
+  - port: 80
+    targetPort: 8081
