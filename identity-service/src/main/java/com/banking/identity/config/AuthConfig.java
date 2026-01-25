@@ -37,7 +37,8 @@ public class AuthConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
-                .csrf(AbstractHttpConfigurer::disable)
+                // CSRF is disabled because we are using stateless authentication (JWT)
+                .csrf(AbstractHttpConfigurer::disable) // NOSONAR
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/register", "/auth/token", "/auth/validate", "/auth/logout").permitAll()

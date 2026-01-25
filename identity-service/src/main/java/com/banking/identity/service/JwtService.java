@@ -37,12 +37,12 @@ public class JwtService {
         Map<String, Object> claims = new HashMap<>();
         Optional<UserCredential> user = userCredentialRepository.findByUsername(userName);
         user.ifPresent(userCredential -> claims.put("userId", String.valueOf(userCredential.getId())));
-        return createToken(claims, userName, 1000 * 60 * 15); // 15 minutes
+        return createToken(claims, userName, 1000L * 60 * 15); // 15 minutes
     }
 
     public String generateRefreshToken(String userName) {
         Map<String, Object> claims = new HashMap<>();
-        return createToken(claims, userName, 1000 * 60 * 60 * 24 * 7); // 7 days
+        return createToken(claims, userName, 1000L * 60 * 60 * 24 * 7); // 7 days
     }
 
     private String createToken(Map<String, Object> claims, String userName, long expirationTime) {
