@@ -97,6 +97,6 @@ class AuthControllerTest {
         mockMvc.perform(post("/auth/token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(authRequest)))
-                .andExpect(status().isInternalServerError()); // RuntimeException fırlatıldığı için 500 döner, GlobalExceptionHandler varsa değişebilir
+                .andExpect(status().isInternalServerError()); // RuntimeException fırlatıldığı için 500 döner
     }
 }

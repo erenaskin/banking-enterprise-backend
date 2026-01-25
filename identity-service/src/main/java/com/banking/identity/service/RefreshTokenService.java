@@ -26,7 +26,8 @@ public class RefreshTokenService {
     }
 
     public RefreshToken createRefreshToken(String username) {
-        UserCredential user = userCredentialRepository.findByUsername(username).get();
+        UserCredential user = userCredentialRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found with username: " + username));
         
         // Kullanıcının zaten bir refresh token'ı var mı kontrol et
         Optional<RefreshToken> existingToken = refreshTokenRepository.findByUserCredential(user);

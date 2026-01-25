@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Component
@@ -35,9 +37,19 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                     return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing authorization header"));
                 }
 
-                String authHeader = exchange.getRequest().getHeaders().get(HttpHeaders.AUTHORIZATION).get(0);
+                String authHeader = Optional.ofNullable(exchange.getRequest().getHeaders().get(HttpHeaders.AUTHORIZATION))
+                        .filter(list -> !list.isEmpty())
+                        .map(list -> list.get(0))
+                        .orElse(null);
+
                 if (authHeader != null && authHeader.startsWith("Bearer ")) {
                     authHeader = authHeader.substring(7);
+                } else {
+                     // Header var ama formatı yanlış veya boş ise hata dönmeli veya null kalmalı
+                     // Mevcut mantıkta null kalırsa aşağıda hata verebilir, o yüzden kontrol ekleyelim
+                     if (authHeader == null) {
+                         return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid authorization header"));
+                     }
                 }
 
                 String finalAuthHeader = authHeader;
