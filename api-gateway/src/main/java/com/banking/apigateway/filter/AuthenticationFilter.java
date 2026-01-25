@@ -1,7 +1,6 @@
 package com.banking.apigateway.filter;
 
 import com.banking.apigateway.util.JwtUtil;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
@@ -17,17 +16,15 @@ import java.util.UUID;
 @Component
 public class AuthenticationFilter extends AbstractGatewayFilterFactory<AuthenticationFilter.Config> {
 
-    @Autowired
-    private RouteValidator validator;
+    private final RouteValidator validator;
+    private final JwtUtil jwtUtil;
+    private final ReactiveStringRedisTemplate redisTemplate;
 
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    @Autowired
-    private ReactiveStringRedisTemplate redisTemplate;
-
-    public AuthenticationFilter() {
+    public AuthenticationFilter(RouteValidator validator, JwtUtil jwtUtil, ReactiveStringRedisTemplate redisTemplate) {
         super(Config.class);
+        this.validator = validator;
+        this.jwtUtil = jwtUtil;
+        this.redisTemplate = redisTemplate;
     }
 
     @Override
@@ -46,7 +43,7 @@ public class AuthenticationFilter extends AbstractGatewayFilterFactory<Authentic
                 String finalAuthHeader = authHeader;
                 return redisTemplate.hasKey("blacklist:" + finalAuthHeader)
                         .flatMap(isBlacklisted -> {
-                            if (isBlacklisted) {
+                            if (Boolean.TRUE.equals(isBlacklisted)) {
                                 return Mono.error(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token has been blacklisted"));
                             }
 

@@ -5,21 +5,24 @@ import com.banking.transaction.dto.DepositRequest;
 import com.banking.transaction.entity.Account;
 import com.banking.transaction.repository.AccountRepository;
 import com.banking.transaction.exception.AccountNotFoundException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.security.SecureRandom;
 import java.util.List;
 import java.util.Random;
 
 @Service
 public class AccountServiceImpl implements AccountService {
 
-    @Autowired
-    private AccountRepository accountRepository;
+    private final AccountRepository accountRepository;
 
-    private static final Random random = new Random();
+    private static final Random random = new SecureRandom();
+
+    public AccountServiceImpl(AccountRepository accountRepository) {
+        this.accountRepository = accountRepository;
+    }
 
     @Override
     public Account createAccount(AccountCreateRequest request, Long userId) {

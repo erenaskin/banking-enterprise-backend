@@ -4,7 +4,6 @@ import com.banking.transaction.dto.ApiResponse;
 import com.banking.transaction.dto.TransactionRequest;
 import com.banking.transaction.service.TransactionService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,8 +14,11 @@ import java.util.Map;
 @RequestMapping("/api/v1/transactions")
 public class TransactionController {
 
-    @Autowired
-    private TransactionService transactionService;
+    private final TransactionService transactionService;
+
+    public TransactionController(TransactionService transactionService) {
+        this.transactionService = transactionService;
+    }
 
     @PostMapping
     public ResponseEntity<ApiResponse<Object>> createTransaction(@RequestHeader("X-Correlation-ID") String correlationId,

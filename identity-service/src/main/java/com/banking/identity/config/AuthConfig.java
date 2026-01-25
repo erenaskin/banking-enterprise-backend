@@ -1,9 +1,8 @@
 package com.banking.identity.config;
 
-import com.banking.identity.service.CustomUserDetailsService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order; // Order import edildi
+import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -23,20 +22,14 @@ import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointR
 public class AuthConfig {
 
     @Bean
-    public UserDetailsService userDetailsService() {
-        return new CustomUserDetailsService();
-    }
-
-    @Bean
     @Order(1)
     public SecurityFilterChain actuatorFilterChain(HttpSecurity http) throws Exception {
         http
-                // String path yerine EndpointRequest kullanın
                 .securityMatcher(EndpointRequest.toAnyEndpoint())
                 .authorizeHttpRequests(auth -> auth
                         .anyRequest().permitAll()
                 )
-                .csrf(csrf -> csrf.ignoringRequestMatchers(EndpointRequest.toAnyEndpoint())); // CSRF için de aynısı
+                .csrf(csrf -> csrf.ignoringRequestMatchers(EndpointRequest.toAnyEndpoint()));
 
         return http.build();
     }
@@ -44,12 +37,9 @@ public class AuthConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
-                // CSRF is disabled because we are using JWT which is stateless
                 .csrf(AbstractHttpConfigurer::disable)
-                // Explicitly set session management to stateless to avoid session creation
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Actuator kuralları yukarıdaki actuatorFilterChain tarafından ele alınacak
                         .requestMatchers("/auth/register", "/auth/token", "/auth/validate", "/auth/logout").permitAll()
                         .anyRequest().authenticated()
                 )
@@ -62,9 +52,9 @@ public class AuthConfig {
     }
 
     @Bean
-    public AuthenticationProvider authenticationProvider() {
+    public AuthenticationProvider authenticationProvider(UserDetailsService userDetailsService) {
         DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
-        authenticationProvider.setUserDetailsService(userDetailsService());
+        authenticationProvider.setUserDetailsService(userDetailsService);
         authenticationProvider.setPasswordEncoder(passwordEncoder());
         return authenticationProvider;
     }

@@ -6,7 +6,6 @@ import com.banking.identity.entity.RefreshToken;
 import com.banking.identity.entity.UserCredential;
 import com.banking.identity.repository.RefreshTokenRepository;
 import com.banking.identity.repository.UserCredentialRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -16,14 +15,15 @@ import java.util.UUID;
 @Service
 public class RefreshTokenService {
 
-    @Autowired
-    private RefreshTokenRepository refreshTokenRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final UserCredentialRepository userCredentialRepository;
+    private final JwtService jwtService;
 
-    @Autowired
-    private UserCredentialRepository userCredentialRepository;
-
-    @Autowired
-    private JwtService jwtService;
+    public RefreshTokenService(RefreshTokenRepository refreshTokenRepository, UserCredentialRepository userCredentialRepository, JwtService jwtService) {
+        this.refreshTokenRepository = refreshTokenRepository;
+        this.userCredentialRepository = userCredentialRepository;
+        this.jwtService = jwtService;
+    }
 
     public RefreshToken createRefreshToken(String username) {
         UserCredential user = userCredentialRepository.findByUsername(username).get();

@@ -12,7 +12,6 @@ import com.banking.transaction.repository.TransactionLedgerRepository;
 import com.banking.transaction.exception.IdempotencyException;
 import com.banking.transaction.exception.UnauthorizedTransactionException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,17 +20,20 @@ import java.time.LocalDateTime;
 @Service
 public class TransactionService {
 
-    @Autowired
-    private AccountRepository accountRepository;
+    private final AccountRepository accountRepository;
+    private final TransactionLedgerRepository transactionLedgerRepository;
+    private final OutboxRepository outboxRepository;
+    private final ObjectMapper objectMapper;
 
-    @Autowired
-    private TransactionLedgerRepository transactionLedgerRepository;
-
-    @Autowired
-    private OutboxRepository outboxRepository;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+    public TransactionService(AccountRepository accountRepository,
+                              TransactionLedgerRepository transactionLedgerRepository,
+                              OutboxRepository outboxRepository,
+                              ObjectMapper objectMapper) {
+        this.accountRepository = accountRepository;
+        this.transactionLedgerRepository = transactionLedgerRepository;
+        this.outboxRepository = outboxRepository;
+        this.objectMapper = objectMapper;
+    }
 
     @Transactional
     public void executeTransaction(TransactionRequest request, String correlationId, Long userId) {

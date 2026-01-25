@@ -5,7 +5,7 @@ import com.banking.identity.repository.UserCredentialRepository;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -17,10 +17,14 @@ import java.util.Optional;
 @Service
 public class JwtService {
 
-    @Autowired
-    private UserCredentialRepository userCredentialRepository;
+    private final UserCredentialRepository userCredentialRepository;
 
-    public static final String SECRET = "6eb5d4980dbe2d1986dbc05a859ae92aa57c82c6799012755856c6cd46bfd2db";
+    @Value("${jwt.secret}")
+    private String secret;
+
+    public JwtService(UserCredentialRepository userCredentialRepository) {
+        this.userCredentialRepository = userCredentialRepository;
+    }
 
     public void validateToken(final String token) {
         Jwts.parser()
@@ -52,7 +56,7 @@ public class JwtService {
     }
 
     private SecretKey getSignKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(SECRET);
+        byte[] keyBytes = Decoders.BASE64.decode(secret);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }

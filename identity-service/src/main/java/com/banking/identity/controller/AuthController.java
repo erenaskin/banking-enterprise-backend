@@ -6,7 +6,6 @@ import com.banking.identity.dto.RefreshTokenRequest;
 import com.banking.identity.entity.UserCredential;
 import com.banking.identity.service.AuthService;
 import com.banking.identity.service.RefreshTokenService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -15,14 +14,16 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
-    @Autowired
-    private AuthService authService;
 
-    @Autowired
-    private RefreshTokenService refreshTokenService;
+    private final AuthService authService;
+    private final RefreshTokenService refreshTokenService;
+    private final AuthenticationManager authenticationManager;
 
-    @Autowired
-    private AuthenticationManager authenticationManager;
+    public AuthController(AuthService authService, RefreshTokenService refreshTokenService, AuthenticationManager authenticationManager) {
+        this.authService = authService;
+        this.refreshTokenService = refreshTokenService;
+        this.authenticationManager = authenticationManager;
+    }
 
     @PostMapping("/register")
     public String addNewUser(@RequestBody UserCredential user) {

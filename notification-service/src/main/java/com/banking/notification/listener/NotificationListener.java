@@ -2,24 +2,28 @@ package com.banking.notification.listener;
 
 import com.banking.notification.dto.TransferSuccessEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 @Component
 public class NotificationListener {
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private static final Logger logger = LoggerFactory.getLogger(NotificationListener.class);
+    private final ObjectMapper objectMapper;
+
+    public NotificationListener(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @KafkaListener(topics = "transaction-events", groupId = "notification-group")
     public void handleNotification(String message) {
         try {
             TransferSuccessEvent event = objectMapper.readValue(message, TransferSuccessEvent.class);
-            System.out.println("Sayın " + event.getUserId() + ", " + event.getAmount() + " tutarındaki işleminiz gerçekleşmiştir");
+            logger.info("Sayın {}, {} tutarındaki işleminiz gerçekleşmiştir", event.getUserId(), event.getAmount());
         } catch (Exception e) {
-            System.err.println("Failed to process message: " + message);
-            e.printStackTrace();
+            logger.error("Failed to process message: {}", message, e);
         }
     }
 }

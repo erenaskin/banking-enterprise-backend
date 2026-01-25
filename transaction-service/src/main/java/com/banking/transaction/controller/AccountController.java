@@ -6,7 +6,6 @@ import com.banking.transaction.dto.DepositRequest;
 import com.banking.transaction.entity.Account;
 import com.banking.transaction.service.AccountService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,8 +16,11 @@ import java.util.List;
 @RequestMapping("/api/v1/accounts")
 public class AccountController {
 
-    @Autowired
-    private AccountService accountService;
+    private final AccountService accountService;
+
+    public AccountController(AccountService accountService) {
+        this.accountService = accountService;
+    }
 
     @PostMapping
     public ResponseEntity<ApiResponse<Account>> createAccount(@RequestHeader("X-User-Id") Long userId, @RequestBody AccountCreateRequest request) {

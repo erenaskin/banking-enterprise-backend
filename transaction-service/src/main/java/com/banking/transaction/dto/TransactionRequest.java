@@ -12,11 +12,11 @@ import java.math.BigDecimal;
 public class TransactionRequest {
 
     @NotBlank
-    @Pattern(regexp = "TR[0-9]{24}")
+    @Pattern(regexp = "TR\\d{24}")
     private String fromIban;
 
     @NotBlank
-    @Pattern(regexp = "TR[0-9]{24}")
+    @Pattern(regexp = "TR\\d{24}")
     private String toIban;
 
     @NotNull

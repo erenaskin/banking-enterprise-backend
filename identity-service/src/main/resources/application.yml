@@ -21,6 +21,9 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
+jwt:
+  secret: 6eb5d4980dbe2d1986dbc05a859ae92aa57c82c6799012755856c6cd46bfd2db
+
 management:
   endpoints:
     web:
