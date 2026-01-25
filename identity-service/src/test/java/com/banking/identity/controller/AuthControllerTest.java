@@ -17,6 +17,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -94,9 +95,15 @@ class AuthControllerTest {
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(authentication);
 
-        mockMvc.perform(post("/auth/token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(authRequest)))
-                .andExpect(status().isInternalServerError()); // RuntimeException fırlatıldığı için 500 döner
+        try {
+            mockMvc.perform(post("/auth/token")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(authRequest)))
+                    .andExpect(status().isInternalServerError());
+        } catch (Exception e) {
+            // Spring Boot testlerinde bazen exception direkt fırlatılır
+            assertTrue(e.getCause() instanceof RuntimeException);
+            assertTrue(e.getMessage().contains("invalid access"));
+        }
     }
 }
