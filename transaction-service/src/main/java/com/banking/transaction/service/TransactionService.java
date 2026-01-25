@@ -13,6 +13,7 @@ import com.banking.transaction.exception.UnauthorizedTransactionException;
 import com.banking.transaction.repository.AccountRepository;
 import com.banking.transaction.repository.OutboxRepository;
 import com.banking.transaction.repository.TransactionLedgerRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -91,8 +92,8 @@ public class TransactionService {
                     .sent(false)
                     .build();
             outboxRepository.save(outbox);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to write to outbox", e);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize event payload", e);
         }
     }
 }
