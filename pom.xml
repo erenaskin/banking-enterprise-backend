@@ -28,6 +28,13 @@
         <java.version>17</java.version>
         <spring-cloud.version>2024.0.0</spring-cloud.version>
         <sonar.organization>erenaskin</sonar.organization>
+        <sonar.coverage.jacoco.xmlReportPaths>
+            ${project.basedir}/common/target/site/jacoco/jacoco.xml,
+            ${project.basedir}/api-gateway/target/site/jacoco/jacoco.xml,
+            ${project.basedir}/identity-service/target/site/jacoco/jacoco.xml,
+            ${project.basedir}/transaction-service/target/site/jacoco/jacoco.xml,
+            ${project.basedir}/notification-service/target/site/jacoco/jacoco.xml
+        </sonar.coverage.jacoco.xmlReportPaths>
     </properties>
 
 

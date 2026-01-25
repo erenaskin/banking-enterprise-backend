@@ -5,6 +5,7 @@ import com.banking.transaction.entity.Account;
 import com.banking.transaction.entity.Outbox;
 import com.banking.transaction.entity.TransactionLedger;
 import com.banking.transaction.exception.IdempotencyException;
+import com.banking.transaction.exception.InsufficientFundsException;
 import com.banking.transaction.exception.UnauthorizedTransactionException;
 import com.banking.transaction.repository.AccountRepository;
 import com.banking.transaction.repository.OutboxRepository;
@@ -108,7 +109,7 @@ class TransactionServiceTest {
         when(accountRepository.findByIban(toIban)).thenReturn(Optional.of(toAccount));
 
         // Act & Assert
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> 
+        InsufficientFundsException exception = assertThrows(InsufficientFundsException.class, () ->
             transactionService.executeTransaction(request, correlationId, userId)
         );
         assertEquals("Insufficient funds", exception.getMessage());

@@ -6,6 +6,7 @@ import com.banking.identity.entity.RefreshToken;
 import com.banking.identity.entity.UserCredential;
 import com.banking.identity.repository.RefreshTokenRepository;
 import com.banking.identity.repository.UserCredentialRepository;
+import org.springframework.security.authentication.CredentialsExpiredException;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -66,7 +67,7 @@ public class RefreshTokenService {
     public RefreshToken verifyExpiration(RefreshToken token) {
         if (token.getExpiryDate().compareTo(Instant.now()) < 0) {
             refreshTokenRepository.delete(token);
-            throw new RuntimeException(token.getToken() + " Refresh token was expired. Please make a new signin request");
+            throw new CredentialsExpiredException(token.getToken() + " Refresh token was expired. Please make a new signin request");
         }
         return token;
     }

@@ -7,7 +7,7 @@ public class TCKNValidator implements ConstraintValidator<TCKN, String> {
 
     @Override
     public boolean isValid(String tckn, ConstraintValidatorContext context) {
-        if (tckn == null || tckn.length() != 11 || !tckn.matches("^[0-9]+$")) {
+        if (tckn == null || tckn.length() != 11 || !tckn.matches("^\\d+$")) {
             return false;
         }
 

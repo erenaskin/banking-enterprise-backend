@@ -10,9 +10,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
@@ -31,13 +32,13 @@ class AuthControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private AuthService authService;
 
-    @MockBean
+    @MockitoBean
     private RefreshTokenService refreshTokenService;
 
-    @MockBean
+    @MockitoBean
     private AuthenticationManager authenticationManager;
 
     @Autowired
@@ -102,8 +103,9 @@ class AuthControllerTest {
                     .andExpect(status().isInternalServerError());
         } catch (Exception e) {
             // Spring Boot testlerinde bazen exception direkt fırlatılır
-            assertTrue(e.getCause() instanceof RuntimeException);
-            assertTrue(e.getMessage().contains("invalid access"));
+            // AuthController'da RuntimeException yerine BadCredentialsException kullanmaya başladığımız için testi güncelledim
+            assertTrue(e.getCause() instanceof BadCredentialsException);
+            assertTrue(e.getMessage().contains("Invalid access"));
         }
     }
 }

@@ -6,11 +6,13 @@ import com.banking.transaction.entity.Account;
 import com.banking.transaction.entity.Outbox;
 import com.banking.transaction.entity.TransactionLedger;
 import com.banking.transaction.entity.TransactionType;
+import com.banking.transaction.exception.AccountNotFoundException;
+import com.banking.transaction.exception.IdempotencyException;
+import com.banking.transaction.exception.InsufficientFundsException;
+import com.banking.transaction.exception.UnauthorizedTransactionException;
 import com.banking.transaction.repository.AccountRepository;
 import com.banking.transaction.repository.OutboxRepository;
 import com.banking.transaction.repository.TransactionLedgerRepository;
-import com.banking.transaction.exception.IdempotencyException;
-import com.banking.transaction.exception.UnauthorizedTransactionException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,17 +44,17 @@ public class TransactionService {
         }
 
         Account fromAccount = accountRepository.findByIban(request.getFromIban())
-                .orElseThrow(() -> new RuntimeException("Sender account not found"));
+                .orElseThrow(() -> new AccountNotFoundException("Sender account not found"));
 
         if (!fromAccount.getUserId().equals(userId)) {
             throw new UnauthorizedTransactionException("User is not the owner of the source account.");
         }
 
         Account toAccount = accountRepository.findByIban(request.getToIban())
-                .orElseThrow(() -> new RuntimeException("Receiver account not found"));
+                .orElseThrow(() -> new AccountNotFoundException("Receiver account not found"));
 
         if (fromAccount.getBalance().compareTo(request.getAmount()) < 0) {
-            throw new RuntimeException("Insufficient funds");
+            throw new InsufficientFundsException("Insufficient funds");
         }
 
         fromAccount.setBalance(fromAccount.getBalance().subtract(request.getAmount()));

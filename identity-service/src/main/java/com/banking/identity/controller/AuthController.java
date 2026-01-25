@@ -7,6 +7,7 @@ import com.banking.identity.entity.UserCredential;
 import com.banking.identity.service.AuthService;
 import com.banking.identity.service.RefreshTokenService;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -36,7 +37,7 @@ public class AuthController {
         if (authenticate.isAuthenticated()) {
             return authService.generateToken(authRequest.getUsername());
         } else {
-            throw new RuntimeException("invalid access");
+            throw new BadCredentialsException("Invalid access: Authentication failed");
         }
     }
 

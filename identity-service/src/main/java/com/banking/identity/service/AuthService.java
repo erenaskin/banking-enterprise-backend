@@ -3,6 +3,7 @@ package com.banking.identity.service;
 import com.banking.identity.dto.JwtResponse;
 import com.banking.identity.entity.UserCredential;
 import com.banking.identity.repository.UserCredentialRepository;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -32,7 +33,7 @@ public class AuthService {
 
     public String saveUser(UserCredential credential) {
         if (repository.findByTckn(credential.getTckn()).isPresent()) {
-            throw new RuntimeException("User with this TCKN already exists");
+            throw new DuplicateKeyException("User with this TCKN already exists");
         }
         credential.setPassword(passwordEncoder.encode(credential.getPassword()));
         repository.save(credential);
