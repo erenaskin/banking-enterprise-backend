@@ -27,13 +27,17 @@ jobs:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
+      
+      - name: Configure Testcontainers
+        run: |
+          echo "testcontainers.ryuk.disabled=true" > ~/.testcontainers.properties
 
       - name: Build and Analyze with SonarQube
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          mvn -e clean verify org.sonarsource.scanner.maven:sonar-maven-plugin:4.0.0.4121:sonar \
+          mvn -e -Dspring.profiles.active= clean verify org.sonarsource.scanner.maven:sonar-maven-plugin:4.0.0.4121:sonar \
             -Dsonar.projectKey=erenaskin_banking-enterprise-backend \
             -Dsonar.organization=erenaskin \
             -Dsonar.host.url=https://sonarcloud.io
