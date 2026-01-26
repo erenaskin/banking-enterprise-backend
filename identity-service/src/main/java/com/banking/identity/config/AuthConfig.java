@@ -1,5 +1,7 @@
 package com.banking.identity.config;
 
+import com.banking.identity.service.CustomUserDetailsService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -11,40 +13,18 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 
 @Configuration
 @EnableWebSecurity
 public class AuthConfig {
 
-    @Bean
-    @Order(1)
-    public SecurityFilterChain actuatorFilterChain(HttpSecurity http) throws Exception {
-        http
-                .securityMatcher(EndpointRequest.toAnyEndpoint())
-                .authorizeHttpRequests(auth -> auth
-                        .anyRequest().permitAll()
-                )
-                .csrf(csrf -> csrf.ignoringRequestMatchers(EndpointRequest.toAnyEndpoint()));
+    private final CustomUserDetailsService customUserDetailsService;
 
-        return http.build();
-    }
-
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http
-                // CSRF is disabled because we are using stateless authentication (JWT)
-                .csrf(AbstractHttpConfigurer::disable) // NOSONAR
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/register", "/auth/token", "/auth/validate", "/auth/logout").permitAll()
-                        .anyRequest().authenticated()
-                )
-                .build();
+    public AuthConfig(CustomUserDetailsService customUserDetailsService) {
+        this.customUserDetailsService = customUserDetailsService;
     }
 
     @Bean
@@ -53,15 +33,50 @@ public class AuthConfig {
     }
 
     @Bean
-    public AuthenticationProvider authenticationProvider(UserDetailsService userDetailsService) {
-        DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
-        authenticationProvider.setUserDetailsService(userDetailsService);
-        authenticationProvider.setPasswordEncoder(passwordEncoder());
-        return authenticationProvider;
+    public AuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        authProvider.setUserDetailsService(customUserDetailsService);
+        authProvider.setPasswordEncoder(passwordEncoder());
+        return authProvider;
     }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
+    }
+
+    @Bean
+    @Order(1)
+    public SecurityFilterChain actuatorFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/actuator/**")
+                .authorizeHttpRequests(auth -> auth
+                        .anyRequest().permitAll()
+                )
+                .csrf(AbstractHttpConfigurer::disable);
+
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .csrf(AbstractHttpConfigurer::disable)
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/auth/**").permitAll()
+                        .anyRequest().authenticated()
+                )
+                .exceptionHandling(exceptions -> exceptions
+                        // Configure to return 401 (Unauthorized) instead of 403 (Forbidden)
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
+                        })
+                )
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                );
+
+        return http.build();
     }
 }

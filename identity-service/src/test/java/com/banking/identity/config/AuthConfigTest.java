@@ -1,9 +1,6 @@
 package com.banking.identity.config;
 
-import com.banking.identity.repository.RefreshTokenRepository; // EKLENDİ
-import com.banking.identity.repository.UserCredentialRepository;
 import com.banking.identity.service.CustomUserDetailsService;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -17,6 +14,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -25,8 +23,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
 class AuthConfigTest {
 
     @Autowired
@@ -34,21 +33,6 @@ class AuthConfigTest {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @Autowired
-    private UserCredentialRepository userCredentialRepository;
-
-    @Autowired
-    private RefreshTokenRepository refreshTokenRepository; // EKLENDİ: İlişkili veriyi silmek için gerekli
-
-    @BeforeEach
-    void setUp() {
-        // ÖNCE Tokenları silmeliyiz (Foreign Key hatasını önlemek için)
-        refreshTokenRepository.deleteAll();
-
-        // SONRA Kullanıcıları silebiliriz
-        userCredentialRepository.deleteAll();
-    }
 
     @Test
     void contextLoads() {
@@ -87,11 +71,17 @@ class AuthConfigTest {
 
     @Test
     void unsecuredEndpointsShouldPermitAll() throws Exception {
-        // /auth/register - Geçerli bir TCKN ile test ediyoruz.
+        // First registration - should succeed (200 OK)
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"testuser\", \"password\":\"password\", \"tckn\":\"10000000146\", \"email\":\"test@test.com\", \"firstName\":\"Ali\", \"lastName\":\"Veli\"}"))
-                .andExpect(status().is2xxSuccessful());
+                .andExpect(status().isOk());
+
+        // Second registration with same TCKN - should fail with 409 Conflict
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"testuser2\", \"password\":\"password\", \"tckn\":\"10000000146\", \"email\":\"test2@test.com\", \"firstName\":\"Ahmet\", \"lastName\":\"Yılmaz\"}"))
+                .andExpect(status().isConflict()); // GlobalExceptionHandler handles DuplicateKeyException
 
         // /auth/token - Boş body ile 401 Unauthorized beklenir
         mockMvc.perform(post("/auth/token")
@@ -102,15 +92,18 @@ class AuthConfigTest {
 
     @Test
     void securedEndpointsShouldRequireAuthentication() throws Exception {
+        // Rastgele bir korumalı endpoint'e erişim denemesi
         mockMvc.perform(get("/some/secured/path"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized()); // Kimlik doğrulaması gerektirdiği için 401 döner
     }
 
     @Test
     void actuatorEndpointsShouldPermitAll() throws Exception {
+        // Actuator health endpoint
         mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk());
 
+        // Actuator info endpoint
         mockMvc.perform(get("/actuator/info"))
                 .andExpect(status().isOk());
     }

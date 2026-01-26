@@ -42,13 +42,13 @@ class NotificationListenerTest {
     void handleNotification_WithInvalidMessage_ShouldLogErrorAndNotThrowException() throws Exception {
         // Arrange
         String invalidMessage = "invalid-json";
-        when(objectMapper.readValue(eq(invalidMessage), any(Class.class))).thenThrow(new RuntimeException("Json parse error"));
+        when(objectMapper.readValue(invalidMessage, TransferSuccessEvent.class)).thenThrow(new RuntimeException("Json parse error"));
 
         // Act
         notificationListener.handleNotification(invalidMessage);
 
         // Assert
-        verify(objectMapper).readValue(eq(invalidMessage), any(Class.class));
+        verify(objectMapper).readValue(invalidMessage, TransferSuccessEvent.class);
         // Exception yutulduğu için test başarılı olmalı
     }
 }

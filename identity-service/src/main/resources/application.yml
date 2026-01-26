@@ -1,18 +1,13 @@
+# For local development, activate the 'dev' profile.
+# You can do this by adding '--spring.profiles.active=dev' as a VM option
+# or by setting the SPRING_PROFILES_ACTIVE=dev environment variable.
+
 server:
   port: 8081
 
 spring:
   application:
     name: identity-service
-  datasource:
-    url: jdbc:postgresql://localhost:5432/banking
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:password}
-    driver-class-name: org.postgresql.Driver
-  data:
-    redis:
-      host: localhost
-      port: 6379
   jpa:
     hibernate:
       ddl-auto: update
@@ -38,3 +33,18 @@ management:
   zipkin:
     tracing:
       endpoint: http://localhost:9411/api/v2/spans
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:postgresql://localhost:5432/banking
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+  data:
+    redis:
+      host: localhost
+      port: 6379
