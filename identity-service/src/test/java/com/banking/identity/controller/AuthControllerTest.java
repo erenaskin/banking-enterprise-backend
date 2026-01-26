@@ -86,26 +86,18 @@ class AuthControllerTest {
     }
 
     @Test
-    void getToken_WithInvalidCredentials_ShouldThrowException() throws Exception {
+    void getToken_WithInvalidCredentials_ShouldReturnUnauthorized() throws Exception {
         AuthRequest authRequest = new AuthRequest();
         authRequest.setUsername("testuser");
         authRequest.setPassword("wrongpassword");
 
-        Authentication authentication = mock(Authentication.class);
-        when(authentication.isAuthenticated()).thenReturn(false);
+        // authenticationManager.authenticate() metodu BadCredentialsException fırlatacak
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenReturn(authentication);
+                .thenThrow(new BadCredentialsException("Invalid access: Authentication failed"));
 
-        try {
-            mockMvc.perform(post("/auth/token")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(objectMapper.writeValueAsString(authRequest)))
-                    .andExpect(status().isInternalServerError());
-        } catch (Exception e) {
-            // Spring Boot testlerinde bazen exception direkt fırlatılır
-            // AuthController'da RuntimeException yerine BadCredentialsException kullanmaya başladığımız için testi güncelledim
-            assertTrue(e.getCause() instanceof BadCredentialsException);
-            assertTrue(e.getMessage().contains("Invalid access"));
-        }
+        mockMvc.perform(post("/auth/token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(authRequest)))
+                .andExpect(status().isUnauthorized()); // GlobalExceptionHandler sayesinde 401 döner
     }
 }

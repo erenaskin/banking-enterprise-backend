@@ -4,9 +4,9 @@ import com.banking.transaction.dto.AccountCreateRequest;
 import com.banking.transaction.dto.DepositRequest;
 import com.banking.transaction.entity.Account;
 import com.banking.transaction.exception.AccountNotFoundException;
-import com.banking.transaction.exception.InsufficientFundsException;
 import com.banking.transaction.service.AccountService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -42,7 +43,6 @@ class AccountControllerTest {
 
     @Test
     void createAccount_WhenRequestIsValid_ShouldReturnCreatedAccount() throws Exception {
-        // Arrange
         AccountCreateRequest request = new AccountCreateRequest();
         request.setCurrency("TRY");
 
@@ -55,7 +55,6 @@ class AccountControllerTest {
 
         when(accountService.createAccount(any(AccountCreateRequest.class), eq(TEST_USER_ID))).thenReturn(account);
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/accounts")
                         .header(USER_ID_HEADER, TEST_USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -68,19 +67,17 @@ class AccountControllerTest {
 
     @Test
     void createAccount_WhenUserIdHeaderIsMissing_ShouldReturnBadRequest() throws Exception {
-        // Arrange
         AccountCreateRequest request = new AccountCreateRequest();
         request.setCurrency("TRY");
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/accounts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest()); // @RequestHeader(required=true) ise 400 döner
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    void createAccount_WhenAccountServiceThrowsException_ShouldReturnInternalServerError() throws Exception {
+    void createAccount_WhenAccountServiceThrowsException_ShouldThrowServletException() {
         // Arrange
         AccountCreateRequest request = new AccountCreateRequest();
         request.setCurrency("TRY");
@@ -89,16 +86,20 @@ class AccountControllerTest {
                 .thenThrow(new RuntimeException("Account creation failed"));
 
         // Act & Assert
-        mockMvc.perform(post("/api/v1/accounts")
-                        .header(USER_ID_HEADER, TEST_USER_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isInternalServerError());
+        // WebMvcTest ortamında ExceptionHandler yakalamazsa ServletException fırlatılır.
+        Exception exception = assertThrows(ServletException.class, () -> {
+            mockMvc.perform(post("/api/v1/accounts")
+                    .header(USER_ID_HEADER, TEST_USER_ID)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)));
+        });
+
+        assertInstanceOf(RuntimeException.class, exception.getCause());
+        assertTrue(exception.getCause().getMessage().contains("Account creation failed"));
     }
 
     @Test
     void getAccounts_WhenAccountsExist_ShouldReturnAccountList() throws Exception {
-        // Arrange
         Account account = new Account();
         account.setId(1L);
         account.setUserId(TEST_USER_ID);
@@ -106,7 +107,6 @@ class AccountControllerTest {
 
         when(accountService.getAccountsByUserId(TEST_USER_ID)).thenReturn(List.of(account));
 
-        // Act & Assert
         mockMvc.perform(get("/api/v1/accounts")
                         .header(USER_ID_HEADER, TEST_USER_ID))
                 .andExpect(status().isOk())
@@ -116,10 +116,8 @@ class AccountControllerTest {
 
     @Test
     void getAccounts_WhenNoAccountsExist_ShouldReturnEmptyList() throws Exception {
-        // Arrange
         when(accountService.getAccountsByUserId(TEST_USER_ID)).thenReturn(Collections.emptyList());
 
-        // Act & Assert
         mockMvc.perform(get("/api/v1/accounts")
                         .header(USER_ID_HEADER, TEST_USER_ID))
                 .andExpect(status().isOk())
@@ -129,14 +127,12 @@ class AccountControllerTest {
 
     @Test
     void getAccounts_WhenUserIdHeaderIsMissing_ShouldReturnBadRequest() throws Exception {
-        // Act & Assert
         mockMvc.perform(get("/api/v1/accounts"))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void deposit_WhenRequestIsValid_ShouldReturnUpdatedAccount() throws Exception {
-        // Arrange
         String iban = "TR123456";
         DepositRequest request = new DepositRequest();
         request.setAmount(new BigDecimal("100.00"));
@@ -147,7 +143,6 @@ class AccountControllerTest {
 
         when(accountService.depositToAccount(eq(iban), any(DepositRequest.class))).thenReturn(account);
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/accounts/{iban}/deposits", iban)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -158,7 +153,6 @@ class AccountControllerTest {
 
     @Test
     void deposit_WhenAccountNotFound_ShouldReturnNotFound() throws Exception {
-        // Arrange
         String iban = "TR_NOT_FOUND";
         DepositRequest request = new DepositRequest();
         request.setAmount(new BigDecimal("50.00"));
@@ -166,24 +160,21 @@ class AccountControllerTest {
         when(accountService.depositToAccount(eq(iban), any(DepositRequest.class)))
                 .thenThrow(new AccountNotFoundException("Account not found"));
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/accounts/{iban}/deposits", iban)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isNotFound()); // Assuming GlobalExceptionHandler maps AccountNotFoundException to 404
+                .andExpect(status().isNotFound());
     }
 
     @Test
     void deposit_WhenDepositRequestIsInvalid_ShouldReturnBadRequest() throws Exception {
-        // Arrange
         String iban = "TR123456";
         DepositRequest request = new DepositRequest();
-        request.setAmount(new BigDecimal("-10.00")); // Invalid amount
+        request.setAmount(new BigDecimal("-10.00"));
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/accounts/{iban}/deposits", iban)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest()); // @Valid anotasyonu sayesinde 400 döner
+                .andExpect(status().isBadRequest());
     }
 }

@@ -14,22 +14,19 @@ import org.springframework.http.HttpStatus;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.function.Predicate;
-
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class AuthenticationFilterTest {
 
-    private RouteValidator validator; // Real object
     @Mock
     private JwtUtil jwtUtil;
     @Mock
@@ -39,7 +36,7 @@ class AuthenticationFilterTest {
 
     @BeforeEach
     void setUp() {
-        validator = new RouteValidator(); // RouteValidator'ı gerçek nesne olarak kullanıyoruz
+        RouteValidator validator = new RouteValidator();
         authenticationFilter = new AuthenticationFilter(validator, jwtUtil, redisTemplate);
     }
 
@@ -50,20 +47,15 @@ class AuthenticationFilterTest {
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
 
-        // RouteValidator'ın isSecured metodu false dönecek
-        // (çünkü /auth/register openApiEndpoints içinde)
-        // when(validator.isSecured.test(request)).thenReturn(false); // Predicate mocklanamaz
-
-        when(chain.filter(any())).thenReturn(Mono.empty());
+        when(chain.filter(any(ServerWebExchange.class))).thenReturn(Mono.empty());
 
         // Act
         GatewayFilter filter = authenticationFilter.apply(new Object());
         Mono<Void> result = filter.filter(exchange, chain);
 
         // Assert
-        StepVerifier.create(result)
-                .verifyComplete();
-        verify(chain).filter(exchange); // Zincirin çağrıldığını doğrula
+        StepVerifier.create(result).verifyComplete();
+        verify(chain).filter(exchange);
     }
 
     @Test
@@ -75,24 +67,20 @@ class AuthenticationFilterTest {
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
 
-        // RouteValidator'ın isSecured metodu true dönecek
-        // (çünkü /api/v1/accounts openApiEndpoints içinde değil)
-        // when(validator.isSecured.test(request)).thenReturn(true); // Predicate mocklanamaz
-
-        when(redisTemplate.hasKey(anyString())).thenReturn(Mono.just(false)); // Token kara listede değil
-        when(jwtUtil.extractUserId(anyString())).thenReturn("123"); // userId başarıyla çıkarıldı
-        when(chain.filter(any())).thenReturn(Mono.empty()); // Zincir devam etti
+        when(redisTemplate.hasKey(anyString())).thenReturn(Mono.just(false));
+        doNothing().when(jwtUtil).validateToken(anyString());
+        when(jwtUtil.extractUserId(anyString())).thenReturn("123");
+        when(chain.filter(any(ServerWebExchange.class))).thenReturn(Mono.empty());
 
         // Act
         GatewayFilter filter = authenticationFilter.apply(new Object());
         Mono<Void> result = filter.filter(exchange, chain);
 
         // Assert
-        StepVerifier.create(result)
-                .verifyComplete();
+        StepVerifier.create(result).verifyComplete();
         verify(jwtUtil).validateToken("valid-token");
         verify(jwtUtil).extractUserId("valid-token");
-        verify(chain).filter(any()); // Zincirin değiştirilmiş request ile çağrıldığını doğrula
+        verify(chain).filter(any(ServerWebExchange.class));
     }
 
     @Test
@@ -108,9 +96,9 @@ class AuthenticationFilterTest {
 
         // Assert
         StepVerifier.create(result)
-                .expectErrorMatches(throwable -> throwable instanceof ResponseStatusException &&
-                        ((ResponseStatusException) throwable).getStatusCode() == HttpStatus.UNAUTHORIZED &&
-                        ((ResponseStatusException) throwable).getReason().contains("Missing authorization header"))
+                .expectErrorMatches(throwable -> throwable instanceof ResponseStatusException e &&
+                        e.getStatusCode() == HttpStatus.UNAUTHORIZED &&
+                        e.getReason() != null && e.getReason().contains("Missing or invalid authorization header"))
                 .verify();
     }
 
@@ -129,9 +117,9 @@ class AuthenticationFilterTest {
 
         // Assert
         StepVerifier.create(result)
-                .expectErrorMatches(throwable -> throwable instanceof ResponseStatusException &&
-                        ((ResponseStatusException) throwable).getStatusCode() == HttpStatus.UNAUTHORIZED &&
-                        ((ResponseStatusException) throwable).getReason().contains("Invalid authorization header"))
+                .expectErrorMatches(throwable -> throwable instanceof ResponseStatusException e &&
+                        e.getStatusCode() == HttpStatus.UNAUTHORIZED &&
+                        e.getReason() != null && e.getReason().contains("Missing or invalid authorization header"))
                 .verify();
     }
 
@@ -144,7 +132,7 @@ class AuthenticationFilterTest {
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
 
-        when(redisTemplate.hasKey(anyString())).thenReturn(Mono.just(true)); // Token kara listede
+        when(redisTemplate.hasKey(anyString())).thenReturn(Mono.just(true));
 
         // Act
         GatewayFilter filter = authenticationFilter.apply(new Object());
@@ -152,9 +140,9 @@ class AuthenticationFilterTest {
 
         // Assert
         StepVerifier.create(result)
-                .expectErrorMatches(throwable -> throwable instanceof ResponseStatusException &&
-                        ((ResponseStatusException) throwable).getStatusCode() == HttpStatus.UNAUTHORIZED &&
-                        ((ResponseStatusException) throwable).getReason().contains("Token has been blacklisted"))
+                .expectErrorMatches(throwable -> throwable instanceof ResponseStatusException e &&
+                        e.getStatusCode() == HttpStatus.UNAUTHORIZED &&
+                        e.getReason() != null && e.getReason().contains("Token has been blacklisted"))
                 .verify();
     }
 
@@ -168,7 +156,7 @@ class AuthenticationFilterTest {
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
 
         when(redisTemplate.hasKey(anyString())).thenReturn(Mono.just(false));
-        when(jwtUtil.validateToken(anyString())).thenThrow(new RuntimeException("Invalid JWT")); // JWT doğrulama hatası
+        doThrow(new RuntimeException("Invalid JWT")).when(jwtUtil).validateToken(anyString());
 
         // Act
         GatewayFilter filter = authenticationFilter.apply(new Object());
@@ -176,9 +164,9 @@ class AuthenticationFilterTest {
 
         // Assert
         StepVerifier.create(result)
-                .expectErrorMatches(throwable -> throwable instanceof ResponseStatusException &&
-                        ((ResponseStatusException) throwable).getStatusCode() == HttpStatus.UNAUTHORIZED &&
-                        ((ResponseStatusException) throwable).getReason().contains("Unauthorized access to application"))
+                .expectErrorMatches(throwable -> throwable instanceof ResponseStatusException e &&
+                        e.getStatusCode() == HttpStatus.UNAUTHORIZED &&
+                        e.getReason() != null && e.getReason().contains("Unauthorized access to application"))
                 .verify();
     }
 
@@ -192,7 +180,8 @@ class AuthenticationFilterTest {
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
 
         when(redisTemplate.hasKey(anyString())).thenReturn(Mono.just(false));
-        when(jwtUtil.extractUserId(anyString())).thenReturn(null); // userId null döndü
+        doNothing().when(jwtUtil).validateToken(anyString());
+        when(jwtUtil.extractUserId(anyString())).thenReturn(null);
 
         // Act
         GatewayFilter filter = authenticationFilter.apply(new Object());
@@ -200,9 +189,9 @@ class AuthenticationFilterTest {
 
         // Assert
         StepVerifier.create(result)
-                .expectErrorMatches(throwable -> throwable instanceof ResponseStatusException &&
-                        ((ResponseStatusException) throwable).getStatusCode() == HttpStatus.UNAUTHORIZED &&
-                        ((ResponseStatusException) throwable).getReason().contains("Invalid Token: userId not found"))
+                .expectErrorMatches(throwable -> throwable instanceof ResponseStatusException e &&
+                        e.getStatusCode() == HttpStatus.UNAUTHORIZED &&
+                        e.getReason() != null && e.getReason().contains("Invalid Token: userId not found"))
                 .verify();
     }
 
@@ -216,11 +205,11 @@ class AuthenticationFilterTest {
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
 
         when(redisTemplate.hasKey(anyString())).thenReturn(Mono.just(false));
+        doNothing().when(jwtUtil).validateToken(anyString());
         when(jwtUtil.extractUserId(anyString())).thenReturn("123");
         when(chain.filter(any())).thenAnswer(invocation -> {
             ServerWebExchange filteredExchange = invocation.getArgument(0);
-            // Yeni Correlation-ID'nin eklendiğini doğrula
-            assert(filteredExchange.getRequest().getHeaders().getFirst("X-Correlation-ID") != null);
+            assertNotNull(filteredExchange.getRequest().getHeaders().getFirst("X-Correlation-ID"));
             return Mono.empty();
         });
 
@@ -229,8 +218,7 @@ class AuthenticationFilterTest {
         Mono<Void> result = filter.filter(exchange, chain);
 
         // Assert
-        StepVerifier.create(result)
-                .verifyComplete();
+        StepVerifier.create(result).verifyComplete();
     }
 
     @Test
@@ -245,11 +233,11 @@ class AuthenticationFilterTest {
         GatewayFilterChain chain = mock(GatewayFilterChain.class);
 
         when(redisTemplate.hasKey(anyString())).thenReturn(Mono.just(false));
+        doNothing().when(jwtUtil).validateToken(anyString());
         when(jwtUtil.extractUserId(anyString())).thenReturn("123");
         when(chain.filter(any())).thenAnswer(invocation -> {
             ServerWebExchange filteredExchange = invocation.getArgument(0);
-            // Mevcut Correlation-ID'nin korunduğunu doğrula
-            assert(filteredExchange.getRequest().getHeaders().getFirst("X-Correlation-ID").equals(existingCorrelationId));
+            assertEquals(existingCorrelationId, filteredExchange.getRequest().getHeaders().getFirst("X-Correlation-ID"));
             return Mono.empty();
         });
 
@@ -258,7 +246,6 @@ class AuthenticationFilterTest {
         Mono<Void> result = filter.filter(exchange, chain);
 
         // Assert
-        StepVerifier.create(result)
-                .verifyComplete();
+        StepVerifier.create(result).verifyComplete();
     }
 }

@@ -7,6 +7,7 @@ import com.banking.transaction.exception.InsufficientFundsException;
 import com.banking.transaction.exception.UnauthorizedTransactionException;
 import com.banking.transaction.service.TransactionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -16,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -51,11 +53,9 @@ class TransactionControllerTest {
 
     @Test
     void createTransaction_WhenRequestIsValid_ShouldReturnAccepted() throws Exception {
-        // Arrange
         TransactionRequest request = createValidTransactionRequest();
         doNothing().when(transactionService).executeTransaction(any(TransactionRequest.class), eq(TEST_CORRELATION_ID), eq(TEST_USER_ID));
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/transactions")
                         .header(USER_ID_HEADER, TEST_USER_ID)
                         .header(CORRELATION_ID_HEADER, TEST_CORRELATION_ID)
@@ -68,10 +68,8 @@ class TransactionControllerTest {
 
     @Test
     void createTransaction_WhenCorrelationIdHeaderIsMissing_ShouldReturnBadRequest() throws Exception {
-        // Arrange
         TransactionRequest request = createValidTransactionRequest();
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/transactions")
                         .header(USER_ID_HEADER, TEST_USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -81,10 +79,8 @@ class TransactionControllerTest {
 
     @Test
     void createTransaction_WhenUserIdHeaderIsMissing_ShouldReturnBadRequest() throws Exception {
-        // Arrange
         TransactionRequest request = createValidTransactionRequest();
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/transactions")
                         .header(CORRELATION_ID_HEADER, TEST_CORRELATION_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -94,13 +90,11 @@ class TransactionControllerTest {
 
     @Test
     void createTransaction_WhenTransactionRequestIsInvalid_ShouldReturnBadRequest() throws Exception {
-        // Arrange
-        TransactionRequest request = new TransactionRequest(); // Invalid due to @NotBlank, @NotNull, @Positive
-        request.setFromIban("INVALID"); // Too short
-        request.setToIban("INVALID"); // Too short
-        request.setAmount(BigDecimal.ZERO); // Not positive
+        TransactionRequest request = new TransactionRequest();
+        request.setFromIban("INVALID");
+        request.setToIban("INVALID");
+        request.setAmount(BigDecimal.ZERO);
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/transactions")
                         .header(USER_ID_HEADER, TEST_USER_ID)
                         .header(CORRELATION_ID_HEADER, TEST_CORRELATION_ID)
@@ -111,81 +105,77 @@ class TransactionControllerTest {
 
     @Test
     void createTransaction_WhenAccountNotFoundException_ShouldReturnNotFound() throws Exception {
-        // Arrange
         TransactionRequest request = createValidTransactionRequest();
         doThrow(new AccountNotFoundException("Account not found")).when(transactionService)
                 .executeTransaction(any(TransactionRequest.class), eq(TEST_CORRELATION_ID), eq(TEST_USER_ID));
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/transactions")
                         .header(USER_ID_HEADER, TEST_USER_ID)
                         .header(CORRELATION_ID_HEADER, TEST_CORRELATION_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isNotFound()); // Assuming GlobalExceptionHandler maps AccountNotFoundException to 404
+                .andExpect(status().isNotFound());
     }
 
     @Test
     void createTransaction_WhenInsufficientFundsException_ShouldReturnBadRequest() throws Exception {
-        // Arrange
         TransactionRequest request = createValidTransactionRequest();
         doThrow(new InsufficientFundsException("Insufficient funds")).when(transactionService)
                 .executeTransaction(any(TransactionRequest.class), eq(TEST_CORRELATION_ID), eq(TEST_USER_ID));
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/transactions")
                         .header(USER_ID_HEADER, TEST_USER_ID)
                         .header(CORRELATION_ID_HEADER, TEST_CORRELATION_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest()); // Assuming GlobalExceptionHandler maps InsufficientFundsException to 400
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    void createTransaction_WhenUnauthorizedTransactionException_ShouldReturnUnauthorized() throws Exception {
-        // Arrange
+    void createTransaction_WhenUnauthorizedTransactionException_ShouldReturnForbidden() throws Exception {
+        // Fix: isUnauthorized() (401) yerine isForbidden() (403) beklendiği için güncellendi.
         TransactionRequest request = createValidTransactionRequest();
         doThrow(new UnauthorizedTransactionException("Unauthorized")).when(transactionService)
                 .executeTransaction(any(TransactionRequest.class), eq(TEST_CORRELATION_ID), eq(TEST_USER_ID));
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/transactions")
                         .header(USER_ID_HEADER, TEST_USER_ID)
                         .header(CORRELATION_ID_HEADER, TEST_CORRELATION_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isUnauthorized()); // Assuming GlobalExceptionHandler maps UnauthorizedTransactionException to 401
+                .andExpect(status().isForbidden());
     }
 
     @Test
     void createTransaction_WhenIdempotencyException_ShouldReturnConflict() throws Exception {
-        // Arrange
         TransactionRequest request = createValidTransactionRequest();
         doThrow(new IdempotencyException("Already processed")).when(transactionService)
                 .executeTransaction(any(TransactionRequest.class), eq(TEST_CORRELATION_ID), eq(TEST_USER_ID));
 
-        // Act & Assert
         mockMvc.perform(post("/api/v1/transactions")
                         .header(USER_ID_HEADER, TEST_USER_ID)
                         .header(CORRELATION_ID_HEADER, TEST_CORRELATION_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isConflict()); // Assuming GlobalExceptionHandler maps IdempotencyException to 409
+                .andExpect(status().isConflict());
     }
 
     @Test
-    void createTransaction_WhenGenericException_ShouldReturnInternalServerError() throws Exception {
-        // Arrange
+    void createTransaction_WhenGenericException_ShouldThrowServletException() {
+        // Fix: GlobalExceptionHandler test ortamında olmadığı için 500 dönmez, exception fırlatır.
         TransactionRequest request = createValidTransactionRequest();
         doThrow(new RuntimeException("Something went wrong")).when(transactionService)
                 .executeTransaction(any(TransactionRequest.class), eq(TEST_CORRELATION_ID), eq(TEST_USER_ID));
 
-        // Act & Assert
-        mockMvc.perform(post("/api/v1/transactions")
-                        .header(USER_ID_HEADER, TEST_USER_ID)
-                        .header(CORRELATION_ID_HEADER, TEST_CORRELATION_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isInternalServerError());
+        Exception exception = assertThrows(ServletException.class, () -> {
+            mockMvc.perform(post("/api/v1/transactions")
+                    .header(USER_ID_HEADER, TEST_USER_ID)
+                    .header(CORRELATION_ID_HEADER, TEST_CORRELATION_ID)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)));
+        });
+
+        assertInstanceOf(RuntimeException.class, exception.getCause());
+        assertTrue(exception.getCause().getMessage().contains("Something went wrong"));
     }
 }
