@@ -1,6 +1,7 @@
 package com.banking.transaction.service;
 
 import com.banking.transaction.dto.TransactionRequest;
+import com.banking.transaction.dto.TransferSuccessEvent;
 import com.banking.transaction.entity.Account;
 import com.banking.transaction.entity.Outbox;
 import com.banking.transaction.entity.TransactionLedger;
@@ -10,6 +11,7 @@ import com.banking.transaction.exception.UnauthorizedTransactionException;
 import com.banking.transaction.repository.AccountRepository;
 import com.banking.transaction.repository.OutboxRepository;
 import com.banking.transaction.repository.TransactionLedgerRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -68,7 +70,7 @@ class TransactionServiceTest {
         when(transactionLedgerRepository.existsByCorrelationIdStartingWith(correlationId)).thenReturn(false);
         when(accountRepository.findByIban(fromIban)).thenReturn(Optional.of(fromAccount));
         when(accountRepository.findByIban(toIban)).thenReturn(Optional.of(toAccount));
-        when(objectMapper.writeValueAsString(any())).thenReturn("json-payload");
+        when(objectMapper.writeValueAsString(any(TransferSuccessEvent.class))).thenReturn("json-payload");
 
         // Act
         transactionService.executeTransaction(request, correlationId, userId);
@@ -160,5 +162,47 @@ class TransactionServiceTest {
         );
 
         verify(accountRepository, never()).findByIban(any());
+    }
+
+    @Test
+    void executeTransaction_WhenJsonProcessingExceptionOccurs_ShouldThrowIllegalStateException() throws JsonProcessingException {
+        // Arrange
+        String correlationId = "corr-123";
+        Long userId = 1L;
+        String fromIban = "TR111";
+        String toIban = "TR222";
+        BigDecimal amount = new BigDecimal("100.00");
+
+        TransactionRequest request = new TransactionRequest();
+        request.setFromIban(fromIban);
+        request.setToIban(toIban);
+        request.setAmount(amount);
+
+        Account fromAccount = new Account();
+        fromAccount.setIban(fromIban);
+        fromAccount.setUserId(userId);
+        fromAccount.setBalance(new BigDecimal("200.00"));
+
+        Account toAccount = new Account();
+        toAccount.setIban(toIban);
+        toAccount.setBalance(new BigDecimal("50.00"));
+
+        when(transactionLedgerRepository.existsByCorrelationIdStartingWith(correlationId)).thenReturn(false);
+        when(accountRepository.findByIban(fromIban)).thenReturn(Optional.of(fromAccount));
+        when(accountRepository.findByIban(toIban)).thenReturn(Optional.of(toAccount));
+        
+        // Simulate JsonProcessingException when writing value as string
+        when(objectMapper.writeValueAsString(any(TransferSuccessEvent.class))).thenThrow(new JsonProcessingException("Test JSON processing error") {});
+
+        // Act & Assert
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+            transactionService.executeTransaction(request, correlationId, userId)
+        );
+        assertEquals("Failed to serialize event payload", exception.getMessage());
+        assertTrue(exception.getCause() instanceof JsonProcessingException);
+
+        verify(accountRepository, times(2)).save(any(Account.class)); // Hesaplar güncellenmeli
+        verify(transactionLedgerRepository, times(2)).save(any(TransactionLedger.class)); // Ledger kayıtları atılmalı
+        verify(outboxRepository, never()).save(any(Outbox.class)); // Outbox'a kaydedilmemeli
     }
 }
