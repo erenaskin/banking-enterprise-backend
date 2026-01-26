@@ -1,0 +1,17 @@
+# Dummy configuration to satisfy Spring Boot's initial checks.
+# These values will be overridden by Testcontainers' @DynamicPropertySource at runtime.
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:1/dummy
+    username: dummy
+    password: dummy
+  data:
+    redis:
+      host: dummy
+      port: 1234
+
+# Disable Redis health check for all tests to prevent connection errors.
+management:
+  health:
+    redis:
+      enabled: false
