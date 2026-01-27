@@ -21,7 +21,7 @@ spring:
   data:
     redis:
       host: localhost
-      port: 6379
+      port: 6370
 
 # JWT configuration for tests
 jwt:
@@ -29,6 +29,20 @@ jwt:
 
 # Disable Redis health check for all tests to prevent connection errors.
 management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info,metrics"
+  endpoint:
+    health:
+      show-details: always
+    info:
+      enabled: true
   health:
     redis:
       enabled: false
+  info:
+    app:
+      name: identity-service
+      version: test
+      encoding: UTF-8

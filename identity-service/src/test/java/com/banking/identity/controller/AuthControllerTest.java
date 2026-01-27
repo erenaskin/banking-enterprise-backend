@@ -1,5 +1,6 @@
 package com.banking.identity.controller;
 
+import com.banking.identity.config.EmbeddedRedisConfig;
 import com.banking.identity.dto.AuthRequest;
 import com.banking.identity.dto.JwtResponse;
 import com.banking.identity.entity.UserCredential;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -27,6 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(AuthController.class)
 @AutoConfigureMockMvc(addFilters = false) // Security filtrelerini devre dışı bırakmak için
+@Import(EmbeddedRedisConfig.class)
 class AuthControllerTest {
 
     @Autowired
