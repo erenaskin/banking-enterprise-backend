@@ -1,14 +1,31 @@
-# Dummy configuration to satisfy Spring Boot's initial checks.
-# These values will be overridden by Testcontainers' @DynamicPropertySource at runtime.
+# Test configuration
+# Using H2 in-memory database for unit/integration tests
+# Redis configuration for test environment
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:1/dummy
-    username: dummy
-    password: dummy
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  h2:
+    console:
+      enabled: false
   data:
     redis:
-      host: dummy
-      port: 1234
+      host: localhost
+      port: 6379
+
+# JWT configuration for tests
+jwt:
+  secret: 6eb5d4980dbe2d1986dbc05a859ae92aa57c82c6799012755856c6cd46bfd2db
 
 # Disable Redis health check for all tests to prevent connection errors.
 management:
