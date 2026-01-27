@@ -98,9 +98,11 @@ class AuthControllerTest {
         authRequest.setUsername("testuser");
         authRequest.setPassword("wrongpassword");
 
-        // authenticationManager.authenticate() metodu BadCredentialsException fırlatacak
+        // authenticationManager.authenticate() metodu, isAuthenticated() false dönen bir Authentication nesnesi döndürecek
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.isAuthenticated()).thenReturn(false);
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenThrow(new BadCredentialsException("Invalid access: Authentication failed"));
+                .thenReturn(authentication);
 
         mockMvc.perform(post("/auth/token")
                         .contentType(MediaType.APPLICATION_JSON)
