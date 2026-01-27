@@ -38,10 +38,10 @@ class TransactionControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private final String CORRELATION_ID_HEADER = "X-Correlation-ID";
-    private final String USER_ID_HEADER = "X-User-Id";
-    private final String TEST_CORRELATION_ID = "corr-123";
-    private final Long TEST_USER_ID = 1L;
+    private final String correlationIdHeader = "X-Correlation-ID";
+    private final String userIdHeader = "X-User-Id";
+    private final String testCorrelationId = "corr-123";
+    private final Long testUserId = 1L;
 
     private TransactionRequest createValidTransactionRequest() {
         TransactionRequest request = new TransactionRequest();
@@ -54,16 +54,16 @@ class TransactionControllerTest {
     @Test
     void createTransaction_WhenRequestIsValid_ShouldReturnAccepted() throws Exception {
         TransactionRequest request = createValidTransactionRequest();
-        doNothing().when(transactionService).executeTransaction(any(TransactionRequest.class), eq(TEST_CORRELATION_ID), eq(TEST_USER_ID));
+        doNothing().when(transactionService).executeTransaction(any(TransactionRequest.class), eq(testCorrelationId), eq(testUserId));
 
         mockMvc.perform(post("/api/v1/transactions")
-                        .header(USER_ID_HEADER, TEST_USER_ID)
-                        .header(CORRELATION_ID_HEADER, TEST_CORRELATION_ID)
+                        .header(userIdHeader, testUserId)
+                        .header(correlationIdHeader, testCorrelationId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.message").value("Transaction accepted for processing."))
-                .andExpect(jsonPath("$.data.correlationId").value(TEST_CORRELATION_ID));
+                .andExpect(jsonPath("$.data.correlationId").value(testCorrelationId));
     }
 
     @Test
@@ -71,7 +71,7 @@ class TransactionControllerTest {
         TransactionRequest request = createValidTransactionRequest();
 
         mockMvc.perform(post("/api/v1/transactions")
-                        .header(USER_ID_HEADER, TEST_USER_ID)
+                        .header(userIdHeader, testUserId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -82,7 +82,7 @@ class TransactionControllerTest {
         TransactionRequest request = createValidTransactionRequest();
 
         mockMvc.perform(post("/api/v1/transactions")
-                        .header(CORRELATION_ID_HEADER, TEST_CORRELATION_ID)
+                        .header(correlationIdHeader, testCorrelationId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -96,8 +96,8 @@ class TransactionControllerTest {
         request.setAmount(BigDecimal.ZERO);
 
         mockMvc.perform(post("/api/v1/transactions")
-                        .header(USER_ID_HEADER, TEST_USER_ID)
-                        .header(CORRELATION_ID_HEADER, TEST_CORRELATION_ID)
+                        .header(userIdHeader, testUserId)
+                        .header(correlationIdHeader, testCorrelationId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -107,11 +107,11 @@ class TransactionControllerTest {
     void createTransaction_WhenAccountNotFoundException_ShouldReturnNotFound() throws Exception {
         TransactionRequest request = createValidTransactionRequest();
         doThrow(new AccountNotFoundException("Account not found")).when(transactionService)
-                .executeTransaction(any(TransactionRequest.class), eq(TEST_CORRELATION_ID), eq(TEST_USER_ID));
+                .executeTransaction(any(TransactionRequest.class), eq(testCorrelationId), eq(testUserId));
 
         mockMvc.perform(post("/api/v1/transactions")
-                        .header(USER_ID_HEADER, TEST_USER_ID)
-                        .header(CORRELATION_ID_HEADER, TEST_CORRELATION_ID)
+                        .header(userIdHeader, testUserId)
+                        .header(correlationIdHeader, testCorrelationId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound());
@@ -121,11 +121,11 @@ class TransactionControllerTest {
     void createTransaction_WhenInsufficientFundsException_ShouldReturnBadRequest() throws Exception {
         TransactionRequest request = createValidTransactionRequest();
         doThrow(new InsufficientFundsException("Insufficient funds")).when(transactionService)
-                .executeTransaction(any(TransactionRequest.class), eq(TEST_CORRELATION_ID), eq(TEST_USER_ID));
+                .executeTransaction(any(TransactionRequest.class), eq(testCorrelationId), eq(testUserId));
 
         mockMvc.perform(post("/api/v1/transactions")
-                        .header(USER_ID_HEADER, TEST_USER_ID)
-                        .header(CORRELATION_ID_HEADER, TEST_CORRELATION_ID)
+                        .header(userIdHeader, testUserId)
+                        .header(correlationIdHeader, testCorrelationId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest());
@@ -136,11 +136,11 @@ class TransactionControllerTest {
         // Fix: isUnauthorized() (401) yerine isForbidden() (403) beklendiği için güncellendi.
         TransactionRequest request = createValidTransactionRequest();
         doThrow(new UnauthorizedTransactionException("Unauthorized")).when(transactionService)
-                .executeTransaction(any(TransactionRequest.class), eq(TEST_CORRELATION_ID), eq(TEST_USER_ID));
+                .executeTransaction(any(TransactionRequest.class), eq(testCorrelationId), eq(testUserId));
 
         mockMvc.perform(post("/api/v1/transactions")
-                        .header(USER_ID_HEADER, TEST_USER_ID)
-                        .header(CORRELATION_ID_HEADER, TEST_CORRELATION_ID)
+                        .header(userIdHeader, testUserId)
+                        .header(correlationIdHeader, testCorrelationId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden());
@@ -150,11 +150,11 @@ class TransactionControllerTest {
     void createTransaction_WhenIdempotencyException_ShouldReturnConflict() throws Exception {
         TransactionRequest request = createValidTransactionRequest();
         doThrow(new IdempotencyException("Already processed")).when(transactionService)
-                .executeTransaction(any(TransactionRequest.class), eq(TEST_CORRELATION_ID), eq(TEST_USER_ID));
+                .executeTransaction(any(TransactionRequest.class), eq(testCorrelationId), eq(testUserId));
 
         mockMvc.perform(post("/api/v1/transactions")
-                        .header(USER_ID_HEADER, TEST_USER_ID)
-                        .header(CORRELATION_ID_HEADER, TEST_CORRELATION_ID)
+                        .header(userIdHeader, testUserId)
+                        .header(correlationIdHeader, testCorrelationId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isConflict());
@@ -165,12 +165,12 @@ class TransactionControllerTest {
         // Fix: GlobalExceptionHandler test ortamında olmadığı için 500 dönmez, exception fırlatır.
         TransactionRequest request = createValidTransactionRequest();
         doThrow(new RuntimeException("Something went wrong")).when(transactionService)
-                .executeTransaction(any(TransactionRequest.class), eq(TEST_CORRELATION_ID), eq(TEST_USER_ID));
+                .executeTransaction(any(TransactionRequest.class), eq(testCorrelationId), eq(testUserId));
 
         Exception exception = assertThrows(ServletException.class, () -> {
             mockMvc.perform(post("/api/v1/transactions")
-                    .header(USER_ID_HEADER, TEST_USER_ID)
-                    .header(CORRELATION_ID_HEADER, TEST_CORRELATION_ID)
+                    .header(userIdHeader, testUserId)
+                    .header(correlationIdHeader, testCorrelationId)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)));
         });

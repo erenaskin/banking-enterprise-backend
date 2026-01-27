@@ -16,6 +16,12 @@ import java.util.stream.Collectors;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final String TIMESTAMP_KEY = "timestamp";
+    private static final String STATUS_KEY = "status";
+    private static final String ERROR_KEY = "error";
+    private static final String MESSAGE_KEY = "message";
+    private static final String PATH_KEY = "path";
+
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<Object> handleConstraintViolation(
             ConstraintViolationException ex, WebRequest request) {
@@ -27,12 +33,12 @@ public class GlobalExceptionHandler {
                 ));
 
         Map<String, Object> body = Map.of(
-                "timestamp", System.currentTimeMillis(),
-                "status", HttpStatus.BAD_REQUEST.value(),
-                "error", "Bad Request",
-                "message", "Validation failed",
+                TIMESTAMP_KEY, System.currentTimeMillis(),
+                STATUS_KEY, HttpStatus.BAD_REQUEST.value(),
+                ERROR_KEY, "Bad Request",
+                MESSAGE_KEY, "Validation failed",
                 "errors", errors,
-                "path", request.getDescription(false).substring(4)
+                PATH_KEY, request.getDescription(false).substring(4)
         );
 
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
@@ -43,11 +49,11 @@ public class GlobalExceptionHandler {
             DuplicateKeyException ex, WebRequest request) {
 
         Map<String, Object> body = Map.of(
-                "timestamp", System.currentTimeMillis(),
-                "status", HttpStatus.CONFLICT.value(),
-                "error", "Conflict",
-                "message", ex.getMessage(),
-                "path", request.getDescription(false).substring(4)
+                TIMESTAMP_KEY, System.currentTimeMillis(),
+                STATUS_KEY, HttpStatus.CONFLICT.value(),
+                ERROR_KEY, "Conflict",
+                MESSAGE_KEY, ex.getMessage(),
+                PATH_KEY, request.getDescription(false).substring(4)
         );
 
         return new ResponseEntity<>(body, HttpStatus.CONFLICT);
@@ -58,11 +64,11 @@ public class GlobalExceptionHandler {
             BadCredentialsException ex, WebRequest request) {
 
         Map<String, Object> body = Map.of(
-                "timestamp", System.currentTimeMillis(),
-                "status", HttpStatus.UNAUTHORIZED.value(),
-                "error", "Unauthorized",
-                "message", ex.getMessage(),
-                "path", request.getDescription(false).substring(4)
+                TIMESTAMP_KEY, System.currentTimeMillis(),
+                STATUS_KEY, HttpStatus.UNAUTHORIZED.value(),
+                ERROR_KEY, "Unauthorized",
+                MESSAGE_KEY, ex.getMessage(),
+                PATH_KEY, request.getDescription(false).substring(4)
         );
 
         return new ResponseEntity<>(body, HttpStatus.UNAUTHORIZED);

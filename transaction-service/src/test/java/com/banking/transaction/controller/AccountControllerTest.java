@@ -38,8 +38,8 @@ class AccountControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private final String USER_ID_HEADER = "X-User-Id";
-    private final Long TEST_USER_ID = 1L;
+    private final String userIdHeader = "X-User-Id";
+    private final Long testUserId = 1L;
 
     @Test
     void createAccount_WhenRequestIsValid_ShouldReturnCreatedAccount() throws Exception {
@@ -48,15 +48,15 @@ class AccountControllerTest {
 
         Account account = new Account();
         account.setId(1L);
-        account.setUserId(TEST_USER_ID);
+        account.setUserId(testUserId);
         account.setCurrency("TRY");
         account.setBalance(BigDecimal.ZERO);
         account.setIban("TR123456");
 
-        when(accountService.createAccount(any(AccountCreateRequest.class), eq(TEST_USER_ID))).thenReturn(account);
+        when(accountService.createAccount(any(AccountCreateRequest.class), eq(testUserId))).thenReturn(account);
 
         mockMvc.perform(post("/api/v1/accounts")
-                        .header(USER_ID_HEADER, TEST_USER_ID)
+                        .header(userIdHeader, testUserId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -82,14 +82,14 @@ class AccountControllerTest {
         AccountCreateRequest request = new AccountCreateRequest();
         request.setCurrency("TRY");
 
-        when(accountService.createAccount(any(AccountCreateRequest.class), eq(TEST_USER_ID)))
+        when(accountService.createAccount(any(AccountCreateRequest.class), eq(testUserId)))
                 .thenThrow(new RuntimeException("Account creation failed"));
 
         // Act & Assert
         // WebMvcTest ortamında ExceptionHandler yakalamazsa ServletException fırlatılır.
         Exception exception = assertThrows(ServletException.class, () -> {
             mockMvc.perform(post("/api/v1/accounts")
-                    .header(USER_ID_HEADER, TEST_USER_ID)
+                    .header(userIdHeader, testUserId)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)));
         });
@@ -102,13 +102,13 @@ class AccountControllerTest {
     void getAccounts_WhenAccountsExist_ShouldReturnAccountList() throws Exception {
         Account account = new Account();
         account.setId(1L);
-        account.setUserId(TEST_USER_ID);
+        account.setUserId(testUserId);
         account.setBalance(BigDecimal.TEN);
 
-        when(accountService.getAccountsByUserId(TEST_USER_ID)).thenReturn(List.of(account));
+        when(accountService.getAccountsByUserId(testUserId)).thenReturn(List.of(account));
 
         mockMvc.perform(get("/api/v1/accounts")
-                        .header(USER_ID_HEADER, TEST_USER_ID))
+                        .header(userIdHeader, testUserId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].id").value(1))
                 .andExpect(jsonPath("$.message").value("Accounts retrieved successfully."));
@@ -116,10 +116,10 @@ class AccountControllerTest {
 
     @Test
     void getAccounts_WhenNoAccountsExist_ShouldReturnEmptyList() throws Exception {
-        when(accountService.getAccountsByUserId(TEST_USER_ID)).thenReturn(Collections.emptyList());
+        when(accountService.getAccountsByUserId(testUserId)).thenReturn(Collections.emptyList());
 
         mockMvc.perform(get("/api/v1/accounts")
-                        .header(USER_ID_HEADER, TEST_USER_ID))
+                        .header(userIdHeader, testUserId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").isEmpty())
                 .andExpect(jsonPath("$.message").value("Accounts retrieved successfully."));

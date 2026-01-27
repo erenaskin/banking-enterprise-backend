@@ -23,11 +23,11 @@ class JwtUtilTest {
     @InjectMocks
     private JwtUtil jwtUtil;
 
-    private final String SECRET = "6eb5d4980dbe2d1986dbc05a859ae92aa57c82c6799012755856c6cd46bfd2db";
+    private final String secret = "6eb5d4980dbe2d1986dbc05a859ae92aa57c82c6799012755856c6cd46bfd2db";
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(jwtUtil, "secret", SECRET);
+        ReflectionTestUtils.setField(jwtUtil, "secret", secret);
     }
 
     @Test
@@ -52,7 +52,7 @@ class JwtUtilTest {
     private String createTestToken(String username) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", "123");
-        byte[] keyBytes = Decoders.BASE64.decode(SECRET);
+        byte[] keyBytes = Decoders.BASE64.decode(secret);
         SecretKey key = Keys.hmacShaKeyFor(keyBytes);
 
         return Jwts.builder()

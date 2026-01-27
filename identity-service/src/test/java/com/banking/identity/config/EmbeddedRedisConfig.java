@@ -12,8 +12,6 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 import redis.embedded.RedisServer;
 
-import java.io.IOException;
-
 @TestConfiguration
 @Profile("test")
 public class EmbeddedRedisConfig {
@@ -21,7 +19,7 @@ public class EmbeddedRedisConfig {
     private RedisServer redisServer;
 
     @PostConstruct
-    public void startRedis() throws IOException {
+    public void startRedis() {
         try {
             redisServer = new RedisServer(6370);
             redisServer.start();
@@ -51,9 +49,7 @@ public class EmbeddedRedisConfig {
     @Bean
     @Primary
     public RedisConnectionFactory testRedisConnectionFactory() {
-        LettuceConnectionFactory factory = new LettuceConnectionFactory();
-        factory.setHostName("localhost");
-        factory.setPort(6370);
+        LettuceConnectionFactory factory = new LettuceConnectionFactory("localhost", 6370);
         // Lazy initialize to prevent connection errors on startup
         factory.setValidateConnection(false);
         return factory;

@@ -101,12 +101,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Burada 'azure/k8s-set-context' KULLANMIYORUZ.
+      # Doğrudan senin bilgisayarındaki canlı config'i gösteriyoruz.
+
       - name: Deploy to Kubernetes
         run: |
+          # 1. KUBECONFIG ortam değişkenini senin ana dizinindeki dosyaya eşitliyoruz
           export KUBECONFIG=$HOME/.kube/config
           
+          # 2. Kontrol Amaçlı: Şu an hangi cluster'a baktığını ekrana yazdıralım
+          echo "Su anki Cluster:"
           kubectl config current-context
+          echo "Cluster Bilgisi:"
+          kubectl cluster-info
           
+          # 3. Deploy Komutları
           kubectl apply -f k8s/
           kubectl rollout restart deployment/api-gateway
           kubectl rollout restart deployment/identity-service
