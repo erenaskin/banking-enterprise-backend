@@ -101,22 +101,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'latest'
-
-      # Not: Self-hosted runner kullanırken bu adım aslında opsiyonel olabilir
-      # ama garanti olsun diye açık bırakıyoruz. 'KUBE_CONFIG' secret'ının
-      # doğru (flatten edilmiş) formatta olduğundan emin ol.
-      - name: Configure Kubernetes Context
-        uses: azure/k8s-set-context@v3
-        with:
-          method: kubeconfig
-          kubeconfig: ${{ secrets.KUBE_CONFIG }}
-
       - name: Deploy to Kubernetes
         run: |
+          export KUBECONFIG=$HOME/.kube/config
+          
+          kubectl config current-context
+          
           kubectl apply -f k8s/
           kubectl rollout restart deployment/api-gateway
           kubectl rollout restart deployment/identity-service
