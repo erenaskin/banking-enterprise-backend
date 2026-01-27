@@ -3,6 +3,7 @@ package com.banking.identity.controller;
 import com.banking.identity.config.EmbeddedRedisConfig;
 import com.banking.identity.dto.AuthRequest;
 import com.banking.identity.dto.JwtResponse;
+import com.banking.identity.dto.RefreshTokenRequest;
 import com.banking.identity.entity.UserCredential;
 import com.banking.identity.service.AuthService;
 import com.banking.identity.service.RefreshTokenService;
@@ -22,7 +23,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -102,5 +106,39 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(authRequest)))
                 .andExpect(status().isUnauthorized()); // GlobalExceptionHandler sayesinde 401 döner
+    }
+
+    @Test
+    void refreshToken_ShouldReturnJwtResponse() throws Exception {
+        RefreshTokenRequest refreshTokenRequest = new RefreshTokenRequest();
+        refreshTokenRequest.setToken("valid-refresh-token");
+
+        JwtResponse jwtResponse = JwtResponse.builder()
+                .accessToken("new-access-token")
+                .refreshToken("valid-refresh-token")
+                .build();
+
+        when(refreshTokenService.refreshToken(any(RefreshTokenRequest.class))).thenReturn(jwtResponse);
+
+        mockMvc.perform(post("/auth/refreshToken")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(refreshTokenRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("new-access-token"))
+                .andExpect(jsonPath("$.refreshToken").value("valid-refresh-token"));
+    }
+
+    @Test
+    void logout_ShouldReturnSuccessMessage() throws Exception {
+        String token = "Bearer valid-token";
+
+        doNothing().when(authService).logout(anyString());
+
+        mockMvc.perform(post("/auth/logout")
+                        .header("Authorization", token))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Logged out successfully"));
+
+        verify(authService).logout(token);
     }
 }

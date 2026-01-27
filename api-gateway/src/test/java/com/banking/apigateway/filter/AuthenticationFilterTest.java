@@ -18,8 +18,11 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+import java.util.Collections;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -93,6 +96,38 @@ class AuthenticationFilterTest {
         // Act
         GatewayFilter filter = authenticationFilter.apply(new Object());
         Mono<Void> result = filter.filter(exchange, chain);
+
+        // Assert
+        StepVerifier.create(result)
+                .expectErrorMatches(throwable -> throwable instanceof ResponseStatusException e &&
+                        e.getStatusCode() == HttpStatus.UNAUTHORIZED &&
+                        e.getReason() != null && e.getReason().contains("Missing or invalid authorization header"))
+                .verify();
+    }
+
+    @Test
+    void apply_WhenSecuredRouteAndEmptyAuthHeaderList_ShouldReturnUnauthorized() {
+        // Arrange
+        // Mocking request with empty Authorization header list
+        MockServerHttpRequest request = mock(MockServerHttpRequest.class);
+        HttpHeaders headers = new HttpHeaders();
+        headers.put(HttpHeaders.AUTHORIZATION, Collections.emptyList());
+        
+        when(request.getHeaders()).thenReturn(headers);
+        // lenient() kullanarak gereksiz stub hatasını önlüyoruz, çünkü RouteValidator kullanıyor olabilir
+        lenient().when(request.getURI()).thenReturn(java.net.URI.create("/api/v1/accounts"));
+        lenient().when(request.getPath()).thenReturn(org.springframework.http.server.RequestPath.parse("/api/v1/accounts", "/"));
+        
+        MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/api/v1/accounts").build());
+        // We need to spy on exchange to return our mocked request
+        ServerWebExchange spyExchange = spy(exchange);
+        when(spyExchange.getRequest()).thenReturn(request);
+        
+        GatewayFilterChain chain = mock(GatewayFilterChain.class);
+
+        // Act
+        GatewayFilter filter = authenticationFilter.apply(new Object());
+        Mono<Void> result = filter.filter(spyExchange, chain);
 
         // Assert
         StepVerifier.create(result)
@@ -210,6 +245,35 @@ class AuthenticationFilterTest {
         when(chain.filter(any())).thenAnswer(invocation -> {
             ServerWebExchange filteredExchange = invocation.getArgument(0);
             assertNotNull(filteredExchange.getRequest().getHeaders().getFirst("X-Correlation-ID"));
+            return Mono.empty();
+        });
+
+        // Act
+        GatewayFilter filter = authenticationFilter.apply(new Object());
+        Mono<Void> result = filter.filter(exchange, chain);
+
+        // Assert
+        StepVerifier.create(result).verifyComplete();
+    }
+
+    @Test
+    void apply_WhenCorrelationIdIsEmptyString_ShouldGenerateNewOne() {
+        // Arrange
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/accounts")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer valid-token")
+                .header("X-Correlation-ID", "")
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+        GatewayFilterChain chain = mock(GatewayFilterChain.class);
+
+        when(redisTemplate.hasKey(anyString())).thenReturn(Mono.just(false));
+        doNothing().when(jwtUtil).validateToken(anyString());
+        when(jwtUtil.extractUserId(anyString())).thenReturn("123");
+        when(chain.filter(any())).thenAnswer(invocation -> {
+            ServerWebExchange filteredExchange = invocation.getArgument(0);
+            String correlationId = filteredExchange.getRequest().getHeaders().getFirst("X-Correlation-ID");
+            assertNotNull(correlationId);
+            assertNotEquals("", correlationId);
             return Mono.empty();
         });
 

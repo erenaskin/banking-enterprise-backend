@@ -53,6 +53,9 @@ public class AuthConfig {
                 .authorizeHttpRequests(auth -> auth
                         .anyRequest().permitAll()
                 )
+                // CSRF koruması devre dışı bırakıldı çünkü bu endpoint'ler genellikle GET istekleri içindir
+                // ve hassas durum değişiklikleri yapmazlar. Ayrıca, stateless bir API olduğu için
+                // oturum tabanlı CSRF korumasına ihtiyaç duyulmaz.
                 .csrf(AbstractHttpConfigurer::disable);
 
         return http.build();
@@ -62,6 +65,9 @@ public class AuthConfig {
     @Order(2)
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // CSRF koruması devre dışı bırakıldı çünkü bu API stateless'tir ve JWT gibi token tabanlı
+                // kimlik doğrulama kullanır. Bu tür uygulamalarda oturum tabanlı CSRF korumasına
+                // genellikle ihtiyaç duyulmaz ve devre dışı bırakılması güvenlidir.
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
@@ -69,9 +75,7 @@ public class AuthConfig {
                 )
                 .exceptionHandling(exceptions -> exceptions
                         // Configure to return 401 (Unauthorized) instead of 403 (Forbidden)
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
-                        })
+                        .authenticationEntryPoint((request, response, authException) -> response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
                 )
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
