@@ -1,130 +1,158 @@
-# Banking Backend - Proje Master Dokümantasyonu
+# Banking Enterprise Backend - Master Documentation
 
-Bu doküman, Banking Backend projesinin Kubernetes (Minikube) üzerindeki kurulumunu, mimarisini, CI/CD süreçlerini, karşılaşılan sorunların çözümlerini ve operasyonel komutları içerir.
-
----
-
-## 1. Proje Mimarisi ve Bileşenler
-
-Proje, mikroservis mimarisi üzerine kurulmuş olup, aşağıdaki bileşenlerden oluşmaktadır:
-
-### A. Mikroservisler (Spring Boot 3.4.1)
-Tüm servisler Kubernetes içinde **Port 80** üzerinden birbirleriyle iletişim kuracak şekilde yapılandırılmıştır.
-
-1.  **API Gateway (`api-gateway`)**
-    *   **Görevi:** Dış dünyadan gelen tüm istekleri karşılar ve ilgili servise yönlendirir.
-    *   **Port:** Dışarıya 8080 (Port-forward ile), Cluster içine 80.
-    *   **Teknoloji:** Spring Cloud Gateway.
-
-2.  **Identity Service (`identity-service`)**
-    *   **Görevi:** Kullanıcı kaydı, giriş işlemleri ve JWT token doğrulama.
-    *   **Bağımlılıklar:** PostgreSQL (Kullanıcı verisi), Redis (Refresh token cache).
-    *   **Güvenlik:** Spring Security ile korunur.
-
-3.  **Transaction Service (`transaction-service`)**
-    *   **Görevi:** Para transferi işlemlerini yönetir.
-    *   **İşleyiş:** Bir işlem gerçekleştiğinde Kafka'ya (`transaction-events`) bir olay (event) fırlatır.
-    *   **Bağımlılıklar:** PostgreSQL, Kafka.
-
-4.  **Notification Service (`notification-service`)**
-    *   **Görevi:** İşlem olaylarını dinler ve bildirim gönderir (Simülasyon).
-    *   **İşleyiş:** Kafka'daki `transaction-events` konusunu dinler (Consumer).
-    *   **Bağımlılıklar:** Kafka.
-
-### B. Altyapı (Infrastructure)
-1.  **PostgreSQL:** İlişkisel veritabanı.
-2.  **Redis:** Token yönetimi (Cache).
-3.  **Kafka & Zookeeper:** Asenkron mesajlaşma.
-4.  **Minikube (Kubernetes):** Konteyner orkestrasyonu.
-
-### C. İzlenebilirlik (Observability)
-1.  **Zipkin:** Dağıtık izleme (Distributed Tracing).
-2.  **Prometheus:** Metrik toplama.
-3.  **Grafana:** Görselleştirme.
+Bu doküman, **Banking Enterprise Backend** projesinin mimarisini, kurulumunu, test süreçlerini ve CI/CD boru hattını (Pipeline) detaylı bir şekilde açıklar. Proje geliştirme sürecinde yapılan iyileştirmeler, karşılaşılan hatalar ve çözümleri de bu dokümanda kayıt altına alınmıştır.
 
 ---
 
-## 2. CI/CD Pipeline (Sürekli Entegrasyon ve Dağıtım)
+## 1. Proje Mimarisi
 
-Proje, **GitHub Actions** kullanılarak otomatikleştirilmiş bir CI/CD hattına sahiptir.
+Proje, ölçeklenebilir ve modüler bir yapı sağlamak için **Mikroservis Mimarisi** kullanılarak geliştirilmiştir.
 
-### İş Akışı (Workflow)
-Her `main` branch'e yapılan push işleminde aşağıdaki adımlar sırasıyla çalışır:
+### Servisler ve Sorumlulukları
 
-1.  **SonarQube Analizi:**
-    *   Kod kalitesi ve güvenliği taranır.
-    *   **Quality Gate:** Eğer kod kalitesi standartların altındaysa (örn. düşük test coverage), pipeline durdurulur.
-2.  **Build & Push:**
-    *   Maven ile proje derlenir.
-    *   Docker imajları oluşturulur.
-    *   İmajlar **Docker Hub**'a yüklenir (`latest` ve `commit-sha` etiketleriyle).
-3.  **Kubernetes Deploy:**
-    *   Başarılı imajlar, tanımlı Kubernetes kümesine (`kubectl apply`) otomatik olarak dağıtılır.
+1.  **API Gateway (`api-gateway`)**:
+    *   **Tek Giriş Noktası:** Tüm dış istekler buraya gelir.
+    *   **Authentication Filter:** Gelen isteklerin `Authorization` header'ını kontrol eder, JWT doğrulamasını yapar ve `X-User-Id`, `X-Correlation-ID` gibi headerları downstream servislere ekler.
+    *   **Routing:** İstekleri ilgili mikroservise yönlendirir.
 
-### Gerekli GitHub Secrets
-Pipeline'ın çalışması için GitHub repo ayarlarında şu secret'lar tanımlanmalıdır:
-*   `DOCKER_USERNAME`: Docker Hub kullanıcı adı.
-*   `DOCKER_PASSWORD`: Docker Hub şifresi veya Access Token.
-*   `SONAR_TOKEN`: SonarCloud analiz token'ı.
-*   `KUBE_CONFIG`: Kubernetes kümesine erişim için config dosyası içeriği.
+2.  **Identity Service (`identity-service`)**:
+    *   **Kimlik Doğrulama:** Kullanıcı kaydı (`/register`), giriş (`/token`), token yenileme (`/refreshToken`) ve çıkış (`/logout`) işlemlerini yönetir.
+    *   **Güvenlik:** Spring Security ve JWT kullanır.
+    *   **Veritabanı:** Kullanıcı bilgileri için PostgreSQL kullanır.
 
----
+3.  **Transaction Service (`transaction-service`)**:
+    *   **Hesap Yönetimi:** Hesap oluşturma, bakiye sorgulama.
+    *   **Para Transferi:** Hesaplar arası para transferi işlemlerini yönetir (ACID prensiplerine uygun).
+    *   **Veritabanı:** İşlem ve hesap kayıtları için PostgreSQL kullanır.
 
-## 3. Karşılaşılan Kritik Sorunlar ve Çözümleri
+4.  **Notification Service (`notification-service`)**:
+    *   **Bildirimler:** Diğer servislerden gelen olayları (event) dinler ve kullanıcılara bildirim gönderir (şu an loglama seviyesinde simüle edilmiştir).
 
-Geliştirme sürecinde çözülen kritik hatalar:
-
-### 1. Identity Service - 403 Forbidden (Readiness Probe)
-*   **Çözüm:** `AuthConfig.java` dosyasında Actuator için ayrı ve öncelikli (`@Order(1)`) bir `SecurityFilterChain` tanımlandı.
-
-### 2. SonarQube Quality Gate Hatası
-*   **Sorun:** Pipeline, SonarQube rapor dosyasını bulamıyordu.
-*   **Çözüm:** `docker-publish.yml` dosyasına `scanMetadataReportFile: target/sonar/report-task.txt` parametresi eklendi.
-
-### 3. SonarQube 403 Forbidden
-*   **Sorun:** Maven plugin versiyonu uyumsuzluğu.
-*   **Çözüm:** Plugin versiyonu `4.0.0.4121` olarak sabitlendi ve `SONAR_TOKEN` environment variable olarak tanımlandı.
-
-### 4. Prometheus - Connection Refused
-*   **Çözüm:** Tüm servislerin Kubernetes Service portları **80** olarak standartlaştırıldı.
+5.  **Common (`common`)**:
+    *   Tüm servisler tarafından paylaşılan DTO'lar, Exception sınıfları ve Yardımcı araçları (örn. `TCKNValidator`) içerir.
 
 ---
 
-## 4. Komut Sözlüğü (Cheat Sheet)
+## 2. Teknoloji Yığını
 
-### Kubernetes (kubectl)
-*   `kubectl apply -f k8s/`: Tüm konfigürasyonları uygular.
-*   `kubectl get pods -w`: Pod'ları izler.
-*   `kubectl logs <pod-adi>`: Logları görüntüler.
-*   `kubectl port-forward svc/<servis-adi> <yerel-port>:<uzak-port>`: Servise erişim tüneli açar.
-
-### Docker & Maven
-*   `mvn clean install -DskipTests`: Projeyi derler (JAR oluşturur).
-*   `docker build -t <imaj-adi>:0.0.1 .`: Docker imajı oluşturur.
-*   `minikube image load <imaj-adi>:0.0.1`: İmajı Minikube'e yükler.
-
----
-
-## 5. Test ve Erişim
-
-Detaylı test senaryoları için **`TESTING_GUIDE.md`** dosyasına bakınız.
-
-**Hızlı Erişim Portları (Port-Forward Gerekir):**
-*   **API Gateway:** `localhost:8080`
-*   **Prometheus:** `localhost:9090`
-*   **Grafana:** `localhost:3000` (admin/admin)
-*   **Zipkin:** `localhost:9411`
+*   **Dil:** Java 17
+*   **Framework:** Spring Boot 3.4.1, Spring Cloud (Gateway)
+*   **Veritabanı:** PostgreSQL (Production), H2 (Test)
+*   **Cache:** Redis (Token Blacklist ve Caching için)
+*   **Test:** JUnit 5, Mockito, Testcontainers, Embedded Redis
+*   **Analiz:** SonarQube (Kod kalitesi ve kapsamı)
+*   **Konteynerizasyon:** Docker
+*   **Orkestrasyon:** Kubernetes (Minikube)
+*   **CI/CD:** GitHub Actions (Self-Hosted Runner)
 
 ---
 
-## 6. Mevcut Durum
+## 3. Kurulum ve Çalıştırma (Lokal Geliştirme)
 
-**✅ Durum:** SİSTEM STABLE (KARARLI) & AUTOMATED (OTOMATİZE)
+### Ön Gereksinimler
+*   Java 17 JDK
+*   Maven 3.8+
+*   Docker & Docker Compose
+*   Minikube (Kubernetes için)
 
-*   Mikroservisler Kubernetes üzerinde çalışıyor.
-*   **CI/CD:** GitHub Actions ile otomatik test, build ve deploy aktif.
-*   **Kalite:** SonarQube ile kod analizi yapılıyor.
-*   **İzleme:** Prometheus ve Grafana ile metrik takibi yapılıyor.
+### Adımlar
+1.  **Bağımlılıkları Derle:**
+    ```bash
+    mvn clean install -DskipTests
+    ```
+2.  **Altyapıyı Kaldır (Docker Compose):**
+    Veritabanı ve Redis servislerini ayağa kaldırmak için:
+    ```bash
+    docker-compose up -d
+    ```
+3.  **Servisleri Başlat:**
+    Her servisi IDE üzerinden veya terminalden `mvn spring-boot:run` ile başlatabilirsiniz.
 
-**Sıradaki Adımlar:**
-(Bkz. `NEXT_STEPS.md`)
+---
+
+## 4. Test Stratejisi ve Kod Kalitesi
+
+Projede **%100 Kod Kapsamı (Code Coverage)** hedeflenmiştir.
+
+### Test Araçları
+*   **Birim Testleri:** İş mantığını izole test etmek için Mockito kullanılır.
+*   **Entegrasyon Testleri:** `@SpringBootTest` ve `Testcontainers` kullanılarak gerçek veritabanı senaryoları test edilir.
+*   **Embedded Redis:** Test ortamında Redis bağımlılığını simüle etmek için kullanılır.
+
+### SonarQube Entegrasyonu
+Proje, her push işleminde SonarQube üzerinde analiz edilir.
+*   **Coverage Raporu:** JaCoCo plugin'i ile üretilir.
+*   **Yapılandırma:** `pom.xml` dosyasında rapor yolları dinamik hale getirilmiştir:
+    ```xml
+    <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+    ```
+
+### Kritik Düzeltmeler ve İyileştirmeler
+Geliştirme sürecinde yapılan önemli test iyileştirmeleri:
+*   **GlobalExceptionHandler:** Tüm exception senaryoları (ConstraintViolation vb.) için testler yazılarak kapsam artırıldı.
+*   **AuthenticationFilter:** `lenient()` kullanılarak Mockito'nun "UnnecessaryStubbing" hataları giderildi ve null pointer hataları çözüldü.
+*   **AuthController:** `isAuthenticated()` kontrolünün `false` olduğu durumlar ve `BadCredentialsException` senaryoları kapsama alındı.
+*   **Code Smells:** Sabit (Constant) tanımları, isimlendirme standartları (camelCase) ve deprecated metod kullanımları temizlendi.
+
+---
+
+## 5. CI/CD Pipeline ve Kubernetes Deployment
+
+Proje, GitHub Actions kullanılarak otomatik olarak test edilir, derlenir, Docker imajı oluşturulur ve Kubernetes ortamına dağıtılır.
+
+### Workflow Dosyası: `docker-publish.yml`
+
+Pipeline şu aşamalardan oluşur:
+1.  **SonarQube Analysis:** Kod kalitesini ve test kapsamını ölçer.
+2.  **Build and Push:** Servisleri derler, Docker imajlarını oluşturur ve Docker Hub'a yükler.
+3.  **Deploy to K8s:** Güncel imajları Kubernetes kümesine dağıtır.
+
+### ⚠️ Kritik: Self-Hosted Runner ve Minikube Yapılandırması
+
+GitHub'ın sunduğu standart runner'lar (ubuntu-latest), sizin yerel bilgisayarınızda çalışan **Minikube** kümesine erişemez. Bu nedenle deployment adımının çalışması için **Self-Hosted Runner** kullanılması zorunludur.
+
+#### Kurulum ve Çalıştırma Adımları:
+
+1.  **Runner Kurulumu:**
+    GitHub Repository -> Settings -> Actions -> Runners -> New self-hosted runner adımlarını takiperek runner'ı bilgisayarınıza indirin ve kurun.
+
+2.  **Kubeconfig Ayarı (Secret):**
+    Runner'ın Minikube'e erişebilmesi için `kubeconfig` dosyanızın içeriği GitHub Secret olarak eklenmelidir.
+    *   Terminalde: `cat ~/.kube/config` komutunu çalıştırın.
+    *   Çıktıyı kopyalayın.
+    *   GitHub -> Settings -> Secrets -> Actions -> New Repository Secret.
+    *   İsim: `KUBE_CONFIG`, Değer: Kopyalanan içerik.
+
+3.  **Deployment Öncesi Hazırlık:**
+    Deployment işlemini başlatmadan önce (git push yapmadan önce) aşağıdaki adımları **kesinlikle** uygulayın:
+
+    *   **Adım 1: Minikube'ü Başlatın**
+        ```bash
+        minikube start
+        ```
+    *   **Adım 2: Runner'ı Başlatın**
+        `actions-runner` klasörüne gidin ve scripti çalıştırın:
+        ```bash
+        cd actions-runner
+        ./run.sh
+        ```
+    *   **Adım 3: "Listening for Jobs" Yazısını Bekleyin**
+        Terminalde bu yazıyı gördüğünüzde runner hazırdır.
+
+4.  **Deployment'ı Tetikleme:**
+    Kodunuzu pushladığınızda (`git push`), GitHub Actions işi runner'ınıza gönderecek ve deployment yerel Minikube kümenize yapılacaktır.
+
+### Karşılaşılan Hatalar ve Çözümleri
+
+*   **Hata:** `Error: Input required and not supplied: kubeconfig`
+    *   **Çözüm:** GitHub Secret'larına `KUBE_CONFIG` eklendi ve workflow dosyasında `azure/k8s-set-context` adımına parametre olarak geçildi.
+*   **Hata:** `Plugin is modifying testCompileSourceRoots...`
+    *   **Çözüm:** `maven-surefire-plugin` sürümü `3.5.2` olarak güncellendi.
+*   **Hata:** SonarQube coverage %0 görünüyordu.
+    *   **Çözüm:** `pom.xml` dosyasında `sonar.coverage.jacoco.xmlReportPaths` yolu her modül için dinamik olacak şekilde `${project.build.directory}` kullanılarak düzeltildi.
+
+---
+
+## 6. Sonuç
+
+Bu proje, modern DevOps pratikleri ve mikroservis mimarisi kullanılarak, yüksek kod kalitesi ve test kapsamı ile geliştirilmiştir. Lokal Kubernetes ortamına (Minikube) otomatik dağıtım yapabilen, kendi kendine yeten bir CI/CD hattına sahiptir.
