@@ -1,102 +1,162 @@
-# 🏦 Banking Backend Microservices
+# 🏦 Banking Enterprise Backend
 
-Bu proje, modern mikroservis mimarisi prensipleriyle geliştirilmiş, ölçeklenebilir, olay güdümlü (event-driven) bir bankacılık simülasyonudur.
+Bu proje, modern **DevOps** pratikleri ve **Mikroservis Mimarisi** kullanılarak geliştirilmiş, ölçeklenebilir, hataya dayanıklı ve tam otomatize bir bankacılık altyapısı simülasyonudur. Sistem; güvenli kimlik doğrulama (JWT), ACID uyumlu finansal işlemler ve olay tabanlı (event-driven) bildirim mekanizmalarını içerir.
 
-Kullanıcı yönetimi, hesap işlemleri, para transferleri ve bildirim sistemlerini içerir. Altyapı olarak **Kubernetes**, **Kafka**, **Redis** ve **PostgreSQL** kullanır.
-
-Proje, **GitHub Actions** ile tam otomatik CI/CD hattına sahiptir ve kod kalitesi **SonarQube** ile denetlenmektedir.
+Proje, **Kubernetes (Minikube)** üzerinde çalışacak şekilde tasarlanmış olup, **GitHub Actions** ile kurulan Self-Hosted CI/CD hattı sayesinde kod değişiklikleri otomatik olarak analiz edilir, test edilir ve küme üzerine dağıtılır.
 
 ---
 
-## 🚀 Teknolojiler ve Mimari
+## ✨ Anahtar Özellikler
 
-Proje **Spring Boot 3.4.1** ve **Java 17+** kullanılarak geliştirilmiştir.
-
-| Bileşen | Teknoloji | Açıklama |
-| :--- | :--- | :--- |
-| **API Gateway** | Spring Cloud Gateway | Tek giriş noktası, yönlendirme ve güvenlik. |
-| **Identity Service** | Spring Security, JWT | Kimlik doğrulama, Token yönetimi (Redis). |
-| **Transaction Service** | Spring Data JPA | Hesap yönetimi, Para transferi (Outbox Pattern). |
-| **Notification Service** | Apache Kafka | Asenkron bildirim gönderimi (Consumer). |
-| **CI/CD** | GitHub Actions | Otomatik Build, Test ve Deploy. |
-| **Code Quality** | SonarQube | Statik kod analizi ve güvenlik taraması. |
-| **Orchestration** | Kubernetes (Minikube) | Konteyner yönetimi. |
+* **Mikroservis Mimarisi:** Sorumluluklarına göre ayrılmış servis yapısı (`Identity`, `Transaction`, `Notification`, `API Gateway`).
+* **%100 Kod Kapsamı (Test Coverage):** `JUnit 5`, `Mockito` ve `Testcontainers` kullanılarak yazılan birim ve entegrasyon testleri ile yüksek güvenilirlik hedeflenmiştir.
+* **Otomatize CI/CD:** GitHub Actions ve Self-Hosted Runner ile her push işleminde SonarQube analizi, build ve Kubernetes dağıtımı yapılır.
+* **Güvenlik:** `Spring Security` ve `JWT` ile korunan uç noktalar, Redis tabanlı token karaliste (blacklist) yönetimi.
+* **Gözlemlenebilirlik:** `Prometheus`, `Grafana` ve `Zipkin` ile dağıtık sistem izleme (Tracing) ve metrik takibi.
+* **Veri Bütünlüğü:** Finansal işlemler için PostgreSQL üzerinde ACID prensiplerine uygun transaction yönetimi.
 
 ---
 
-## 📂 Proje Yapısı
+## 🚀 Teknoloji Haritası
 
+| Kategori               | Teknoloji        | Sürüm / Detay                           |
+|:-----------------------|:-----------------|:----------------------------------------|
+| **Dil & Framework**    | Java 17          | Spring Boot 3.4.1, Spring Cloud Gateway |
+| **Veritabanı**         | PostgreSQL       | Production DB                           |
+| **Cache & NoSQL**      | Redis            | Token Blacklist & Caching               |
+| **Test**               | JUnit 5, Mockito | Testcontainers, Embedded Redis          |
+| **CI/CD & Kalite**     | GitHub Actions   | SonarQube, JaCoCo, Docker Hub           |
+| **Orkestrasyon**       | Kubernetes       | Minikube (Local Cluster)                |
+| **Gözlemlenebilirlik** | Grafana & Zipkin | Distributed Tracing & Monitoring        |
+
+---
+
+## 🏗️ Servis Mimarisi
+
+Sistem aşağıdaki temel bileşenlerden oluşur:
+
+1.  **API Gateway:** Tek giriş noktası. Authentication filter ile JWT doğrulaması yapar ve istekleri yönlendirir.
+2.  **Identity Service:** Kullanıcı kaydı, giriş ve token (Access/Refresh) yönetimini sağlar.
+3.  **Transaction Service:** Hesap oluşturma, bakiye sorgulama ve para transferi işlemlerini yönetir.
+4.  **Notification Service:** Diğer servislerden gelen olayları dinler ve bildirim süreçlerini yönetir.
+
+---
+
+## ⚡ Hızlı Başlangıç: Sistemi Ayağa Kaldırma
+
+Bu adımlar, projenin Kubernetes (Minikube) ortamında çalıştırılmasını kapsar.
+
+**Ön Gereksinimler:** `Java 17`, `Docker`, `Minikube` ve `kubectl`.
+
+**1. Minikube'ü Başlatın:**
 ```bash
-banking-backend/
-├── .github/workflows/    # CI/CD Pipeline tanımları (YAML)
-├── api-gateway/          # İstek karşılama ve yönlendirme
-├── identity-service/     # Auth (Register, Login, Token)
-├── transaction-service/  # Hesap ve Transfer işlemleri
-├── notification-service/ # Bildirim (Kafka Consumer)
-├── common/               # Ortak DTO, Exception ve Utils
-├── k8s/                  # Kubernetes Deployment & Service dosyaları
-├── PROJECT_MASTER_GUIDE.md # Detaylı Mimari ve Operasyon Rehberi
-└── TESTING_GUIDE.md      # Uçtan Uca Test Senaryoları
-```
-
----
-
-## 🛠 Kurulum ve Çalıştırma (Kubernetes)
-
-Proje, Kubernetes (Minikube) üzerinde çalışacak şekilde yapılandırılmıştır.
-
-### 1. Ön Gereksinimler
-*   Docker Desktop
-*   Minikube
-*   kubectl
-*   Java 17+ & Maven
-
-### 2. Başlatma
-Tüm altyapıyı ve servisleri ayağa kaldırmak için:
-
-```bash
-# 1. Minikube'ü başlatın
 minikube start
 
-# 2. Kubernetes konfigürasyonlarını uygulayın
-kubectl apply -f k8s/
-
-# 3. Pod'ların durumunu izleyin
-kubectl get pods -w
 ```
 
-### 3. Erişim (Port-Forward)
-Servislere yerel makinenizden erişmek için tünel açmanız gerekir:
+**2. Kubernetes Deployment:**
+Servisleri, veritabanlarını ve konfigürasyonları kümeye uygulayın.
+*(Not: CI/CD pipeline'ı bunu otomatik yapar, ancak manuel kurulum için aşağıdaki komutu kullanabilirsiniz)*
 
 ```bash
-# API Gateway (Uygulama)
+kubectl apply -f k8s/
+
+```
+
+**3. Pod Durumlarını Kontrol Edin:**
+Tüm servislerin `Running` durumuna geçmesini bekleyin.
+
+```bash
+kubectl get pods -w
+
+```
+
+**4. Port Yönlendirme (Port-Forward):**
+API Gateway ve İzleme araçlarına erişmek için tünel açın:
+
+```bash
+# API Gateway (Uygulama Erişimi)
 kubectl port-forward svc/api-gateway 8080:8080
 
-# Grafana (İzleme)
+# Grafana (Opsiyonel - Monitoring)
 kubectl port-forward svc/grafana 3000:3000
+
 ```
 
 ---
 
-## 🧪 Test ve Kullanım
+## 🧪 Uçtan Uca Test Senaryosu (cURL)
 
-Sistemi uçtan uca test etmek (Kayıt olma, Para yatırma, Transfer vb.) için detaylı rehberimizi inceleyin:
+Aşağıdaki komutlarla sisteme kayıt olup para transferi gerçekleştirebilirsiniz.
 
-👉 **[TESTING_GUIDE.md](TESTING_GUIDE.md)**
+**Adım 1: Kullanıcı Oluştur (Register)**
+
+```bash
+curl -X POST http://localhost:8080/auth/register \
+-H "Content-Type: application/json" \
+-d '{"username": "testuser", "password": "password123", "tckn": "10000000146", "firstName": "Test", "lastName": "User", "email": "test@example.com"}'
+
+```
+
+**Adım 2: Giriş Yap ve Token Al (Login)**
+
+```bash
+# Token'ı alıp bir değişkene atar (jq kurulu olmalıdır, yoksa manuel kopyalayınız)
+TOKEN=$(curl -s -X POST http://localhost:8080/auth/token \
+-H "Content-Type: application/json" \
+-d '{"username": "testuser", "password": "password123"}' | jq -r .accessToken)
+
+echo "Access Token: $TOKEN"
+
+```
+
+**Adım 3: Banka Hesabı Oluştur**
+
+```bash
+# Oluşan IBAN'ı alır
+IBAN=$(curl -s -X POST http://localhost:8080/api/v1/accounts \
+-H "Authorization: Bearer $TOKEN" \
+-H "Content-Type: application/json" \
+-d '{"currency": "TRY"}' | jq -r .data.iban)
+
+echo "Oluşturulan IBAN: $IBAN"
+
+```
+
+**Adım 4: Hesaba Para Yatır (Deposit)**
+
+```bash
+curl -X POST http://localhost:8080/api/v1/accounts/$IBAN/deposits \
+-H "Authorization: Bearer $TOKEN" \
+-H "Content-Type: application/json" \
+-d '{"amount": 1000.00}'
+
+```
+
+**Adım 5: Para Transferi Yap (Transaction)**
+
+```bash
+# Not: toIban olarak sistemde var olan başka bir IBAN kullanmalısınız.
+curl -X POST http://localhost:8080/api/v1/transactions \
+-H "Authorization: Bearer $TOKEN" \
+-H "Content-Type: application/json" \
+-d '{"fromIban": "'$IBAN'", "toIban": "TR9999999999999999999999", "amount": 150.00}'
+
+```
 
 ---
 
-## 📊 İzleme (Monitoring)
+## 📚 Dokümantasyon ve Rehberler
 
-Sistem ayaktayken aşağıdaki araçlarla sağlık durumunu izleyebilirsiniz:
+Proje hakkında daha derinlemesine bilgi için aşağıdaki rehberleri inceleyebilirsiniz:
 
-*   **Grafana:** `http://localhost:3000` (Kullanıcı: `admin`, Şifre: `admin`)
-*   **Zipkin:** `http://localhost:9411`
-*   **Prometheus:** `http://localhost:9090`
-*   **SonarCloud:** Kod kalitesi raporları için SonarCloud panelini ziyaret edin.
+* 📘 **[PROJECT_MASTER_GUIDE.md](PROJECT_MASTER_GUIDE.md)**:
+* Detaylı mimari kararlar.
+* **Self-Hosted Runner** ve CI/CD kurulum adımları.
+* Karşılaşılan kritik hatalar ve çözüm süreçleri.
 
----
 
-## 📝 Lisans
-
-Bu proje eğitim ve portfolyo amaçlı geliştirilmiştir.
+* 🧪 **[TESTING_GUIDE.md](TESTING_GUIDE.md)**:
+* Adım adım manuel test süreçleri.
+* Grafana ve Prometheus ile izleme panelleri.
+* Sık karşılaşılan hatalar (Troubleshooting).
