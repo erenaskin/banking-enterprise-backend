@@ -87,34 +87,22 @@ Proje, her push işleminde SonarQube üzerinde analiz edilir.
     <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
     ```
 
-### Kritik Düzeltmeler ve İyileştirmeler
-Geliştirme sürecinde yapılan önemli test iyileştirmeleri:
-*   **GlobalExceptionHandler:** Tüm exception senaryoları (ConstraintViolation vb.) için testler yazılarak kapsam artırıldı.
-*   **AuthenticationFilter:** `lenient()` kullanılarak Mockito'nun "UnnecessaryStubbing" hataları giderildi ve null pointer hataları çözüldü.
-*   **AuthController:** `isAuthenticated()` kontrolünün `false` olduğu durumlar ve `BadCredentialsException` senaryoları kapsama alındı.
-*   **Code Smells:** Sabit (Constant) tanımları, isimlendirme standartları (camelCase) ve deprecated metod kullanımları temizlendi.
-
 ---
 
 ## 5. CI/CD Pipeline ve Kubernetes Deployment
 
 Proje, GitHub Actions kullanılarak otomatik olarak test edilir, derlenir, Docker imajı oluşturulur ve Kubernetes ortamına dağıtılır.
 
-### Workflow Dosyası: `docker-publish.yml`
-
-Pipeline şu aşamalardan oluşur:
-1.  **SonarQube Analysis:** Kod kalitesini ve test kapsamını ölçer.
-2.  **Build and Push:** Servisleri derler, Docker imajlarını oluşturur ve Docker Hub'a yükler.
-3.  **Deploy to K8s:** Güncel imajları Kubernetes kümesine dağıtır.
-
 ### ⚠️ Kritik: Self-Hosted Runner ve Minikube Yapılandırması
 
-GitHub'ın sunduğu standart runner'lar (ubuntu-latest), sizin yerel bilgisayarınızda çalışan **Minikube** kümesine erişemez. Bu nedenle deployment adımının çalışması için **Self-Hosted Runner** kullanılması zorunludur.
+GitHub'ın sunduğu standart runner'lar (ubuntu-latest), sizin yerel bilgisayarınızda çalışan **Minikube** kümesine erişemez. Bu nedenle deployment adımının çalışması için **Self-Hosted Runner** kullanılması zorunludur. Bu runner, sizin kendi bilgisayarınızda çalışarak GitHub Actions ile yerel Minikube'ünüz arasında bir köprü kurar.
 
 #### Kurulum ve Çalıştırma Adımları:
 
 1.  **Runner Kurulumu:**
-    GitHub Repository -> Settings -> Actions -> Runners -> New self-hosted runner adımlarını takiperek runner'ı bilgisayarınıza indirin ve kurun.
+    *   GitHub reponuzda **Settings > Actions > Runners > New self-hosted runner** adımlarını takip edin.
+    *   İşletim sisteminize uygun komutları izleyerek runner'ı bilgisayarınızda proje dizini **dışında** bir klasöre (örneğin `~/actions-runner`) indirin ve yapılandırın.
+    *   **ÖNEMLİ:** Bu `actions-runner` klasörü, hassas bilgiler içerdiğinden **asla** Git reponuza eklenmemelidir.
 
 2.  **Kubeconfig Ayarı (Secret):**
     Runner'ın Minikube'e erişebilmesi için `kubeconfig` dosyanızın içeriği GitHub Secret olarak eklenmelidir.
@@ -124,32 +112,22 @@ GitHub'ın sunduğu standart runner'lar (ubuntu-latest), sizin yerel bilgisayar�
     *   İsim: `KUBE_CONFIG`, Değer: Kopyalanan içerik.
 
 3.  **Deployment Öncesi Hazırlık:**
-    Deployment işlemini başlatmadan önce (git push yapmadan önce) aşağıdaki adımları **kesinlikle** uygulayın:
+    Deployment işlemini başlatmadan önce (`git push` yapmadan önce) aşağıdaki adımları **kesinlikle** uygulayın:
 
     *   **Adım 1: Minikube'ü Başlatın**
         ```bash
         minikube start
         ```
     *   **Adım 2: Runner'ı Başlatın**
-        `actions-runner` klasörüne gidin ve scripti çalıştırın:
+        Runner'ı kurduğunuz dizine gidin (örneğin `cd ~/actions-runner`) ve script'i çalıştırın:
         ```bash
-        cd actions-runner
         ./run.sh
         ```
     *   **Adım 3: "Listening for Jobs" Yazısını Bekleyin**
-        Terminalde bu yazıyı gördüğünüzde runner hazırdır.
+        Terminalde bu yazıyı gördüğünüzde runner, GitHub'dan gelecek işleri dinlemeye hazırdır.
 
 4.  **Deployment'ı Tetikleme:**
-    Kodunuzu pushladığınızda (`git push`), GitHub Actions işi runner'ınıza gönderecek ve deployment yerel Minikube kümenize yapılacaktır.
-
-### Karşılaşılan Hatalar ve Çözümleri
-
-*   **Hata:** `Error: Input required and not supplied: kubeconfig`
-    *   **Çözüm:** GitHub Secret'larına `KUBE_CONFIG` eklendi ve workflow dosyasında `azure/k8s-set-context` adımına parametre olarak geçildi.
-*   **Hata:** `Plugin is modifying testCompileSourceRoots...`
-    *   **Çözüm:** `maven-surefire-plugin` sürümü `3.5.2` olarak güncellendi.
-*   **Hata:** SonarQube coverage %0 görünüyordu.
-    *   **Çözüm:** `pom.xml` dosyasında `sonar.coverage.jacoco.xmlReportPaths` yolu her modül için dinamik olacak şekilde `${project.build.directory}` kullanılarak düzeltildi.
+    Kodunuzu pushladığınızda (`git push`), GitHub Actions işi sizin yerel runner'ınıza gönderecek ve deployment yerel Minikube kümenize yapılacaktır.
 
 ---
 

@@ -51,97 +51,60 @@ Bu adımlar, projenin Kubernetes (Minikube) ortamında çalıştırılmasını k
 **1. Minikube'ü Başlatın:**
 ```bash
 minikube start
-
 ```
 
 **2. Kubernetes Deployment:**
 Servisleri, veritabanlarını ve konfigürasyonları kümeye uygulayın.
-*(Not: CI/CD pipeline'ı bunu otomatik yapar, ancak manuel kurulum için aşağıdaki komutu kullanabilirsiniz)*
-
 ```bash
 kubectl apply -f k8s/
-
 ```
 
 **3. Pod Durumlarını Kontrol Edin:**
 Tüm servislerin `Running` durumuna geçmesini bekleyin.
-
 ```bash
 kubectl get pods -w
-
 ```
 
 **4. Port Yönlendirme (Port-Forward):**
 API Gateway ve İzleme araçlarına erişmek için tünel açın:
-
 ```bash
 # API Gateway (Uygulama Erişimi)
 kubectl port-forward svc/api-gateway 8080:8080
-
-# Grafana (Opsiyonel - Monitoring)
-kubectl port-forward svc/grafana 3000:3000
-
 ```
+
+---
+
+## 🔄 CI/CD ve Self-Hosted Runner Kurulumu
+
+Projenin CI/CD hattı, kod değişikliklerini yerel Minikube kümenize dağıtmak için **Self-Hosted Runner** kullanımını zorunlu kılar.
+
+**⚠️ Önemli:** Runner, hassas bilgiler içerdiğinden **proje klasörünün dışında** kurulmalıdır.
+
+1.  **Runner'ı Kurun:** GitHub reponuzda `Settings > Actions > Runners > New self-hosted runner` adımlarını izleyerek runner'ı bilgisayarınızda ayrı bir dizine kurun.
+2.  **`KUBE_CONFIG` Secret'ını Ekleyin:** `cat ~/.kube/config` komutunun çıktısını kopyalayıp, reponun `Settings > Secrets > Actions` bölümünde `KUBE_CONFIG` adıyla yeni bir secret olarak ekleyin.
+3.  **Deployment Öncesi:** Kodunuzu `git push` yapmadan önce Minikube'ün ve Self-Hosted Runner'ın (`./run.sh`) çalıştığından emin olun.
 
 ---
 
 ## 🧪 Uçtan Uca Test Senaryosu (cURL)
 
-Aşağıdaki komutlarla sisteme kayıt olup para transferi gerçekleştirebilirsiniz.
+Sistem ayaktayken, aşağıdaki komutlarla temel bir kullanıcı akışını test edebilirsiniz.
 
 **Adım 1: Kullanıcı Oluştur (Register)**
-
 ```bash
-curl -X POST http://localhost:8080/auth/register \
--H "Content-Type: application/json" \
--d '{"username": "testuser", "password": "password123", "tckn": "10000000146", "firstName": "Test", "lastName": "User", "email": "test@example.com"}'
-
+curl -X POST http://localhost:8080/auth/register -H "Content-Type: application/json" -d '{"username": "testuser", "password": "password123", "tckn": "10000000146"}'
 ```
 
 **Adım 2: Giriş Yap ve Token Al (Login)**
-
 ```bash
-# Token'ı alıp bir değişkene atar (jq kurulu olmalıdır, yoksa manuel kopyalayınız)
-TOKEN=$(curl -s -X POST http://localhost:8080/auth/token \
--H "Content-Type: application/json" \
--d '{"username": "testuser", "password": "password123"}' | jq -r .accessToken)
-
-echo "Access Token: $TOKEN"
-
+TOKEN=$(curl -s -X POST http://localhost:8080/auth/token -H "Content-Type: application/json" -d '{"username": "testuser", "password": "password123"}' | jq -r .accessToken)
 ```
 
-**Adım 3: Banka Hesabı Oluştur**
-
+**Adım 3: Para Transferi Yap**
 ```bash
-# Oluşan IBAN'ı alır
-IBAN=$(curl -s -X POST http://localhost:8080/api/v1/accounts \
--H "Authorization: Bearer $TOKEN" \
--H "Content-Type: application/json" \
--d '{"currency": "TRY"}' | jq -r .data.iban)
-
-echo "Oluşturulan IBAN: $IBAN"
-
-```
-
-**Adım 4: Hesaba Para Yatır (Deposit)**
-
-```bash
-curl -X POST http://localhost:8080/api/v1/accounts/$IBAN/deposits \
--H "Authorization: Bearer $TOKEN" \
--H "Content-Type: application/json" \
--d '{"amount": 1000.00}'
-
-```
-
-**Adım 5: Para Transferi Yap (Transaction)**
-
-```bash
-# Not: toIban olarak sistemde var olan başka bir IBAN kullanmalısınız.
-curl -X POST http://localhost:8080/api/v1/transactions \
--H "Authorization: Bearer $TOKEN" \
--H "Content-Type: application/json" \
--d '{"fromIban": "'$IBAN'", "toIban": "TR9999999999999999999999", "amount": 150.00}'
-
+# Bu adımdan önce bir hesap oluşturup para yatırmanız gerekir.
+# Detaylar için TESTING_GUIDE.md'ye bakın.
+curl -X POST http://localhost:8080/api/v1/transactions -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"fromIban": "...", "toIban": "...", "amount": 150.00}'
 ```
 
 ---
@@ -150,13 +113,5 @@ curl -X POST http://localhost:8080/api/v1/transactions \
 
 Proje hakkında daha derinlemesine bilgi için aşağıdaki rehberleri inceleyebilirsiniz:
 
-* 📘 **[PROJECT_MASTER_GUIDE.md](PROJECT_MASTER_GUIDE.md)**:
-* Detaylı mimari kararlar.
-* **Self-Hosted Runner** ve CI/CD kurulum adımları.
-* Karşılaşılan kritik hatalar ve çözüm süreçleri.
-
-
-* 🧪 **[TESTING_GUIDE.md](TESTING_GUIDE.md)**:
-* Adım adım manuel test süreçleri.
-* Grafana ve Prometheus ile izleme panelleri.
-* Sık karşılaşılan hatalar (Troubleshooting).
+*   📘 **[PROJECT_MASTER_GUIDE.md](PROJECT_MASTER_GUIDE.md)**: Detaylı mimari, CI/CD kurulumu ve karşılaşılan sorunların çözümleri.
+*   🧪 **[TESTING_GUIDE.md](TESTING_GUIDE.md)**: Adım adım manuel test senaryoları ve izleme panelleri hakkında bilgiler.
